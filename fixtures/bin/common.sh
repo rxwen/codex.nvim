@@ -10,7 +10,7 @@ get_configs() {
     ! -name "fixtures" \
     ! -name "bin" \
     ! -path "$fixtures_dir" \
-    -printf "%f\n" | sort
+    -exec basename {} \; | sort
 }
 
 # Validate config exists
@@ -45,4 +45,3 @@ select_config() {
     echo "$config"
   fi
 }
-

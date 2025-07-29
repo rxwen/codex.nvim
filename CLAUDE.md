@@ -47,6 +47,7 @@ The `fixtures/` directory contains test Neovim configurations for verifying plug
 - Source `fixtures/nvim-aliases.sh` to enable these commands
 
 **Available Fixtures**:
+
 - `netrw` - Tests with Neovim's built-in file explorer
 - `nvim-tree` - Tests with nvim-tree.lua file explorer
 - `oil` - Tests with oil.nvim file explorer
@@ -369,6 +370,7 @@ rg "0\.1\.0" .  # Should only show CHANGELOG.md historical entries
 5. **Run Full Test Suite**: Ensure `make` passes with new integration
 
 **Fixture Requirements**:
+
 - Complete Neovim configuration with plugin dependencies
 - Include `dev-claudecode.lua` with development keybindings
 - Test all relevant claudecode.nvim features with the integration

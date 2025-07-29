@@ -132,12 +132,14 @@ make format
 When adding support for new integrations (file explorers, terminals, etc.), you **must** provide a fixture configuration for testing:
 
 **Requirements**:
+
 - Complete Neovim configuration in `fixtures/[integration-name]/`
 - Include plugin dependencies and proper setup
 - Add `dev-claudecode.lua` with development keybindings
 - Test all relevant claudecode.nvim features with the integration
 
 **Usage**:
+
 ```bash
 # Source fixture aliases
 source fixtures/nvim-aliases.sh
@@ -152,6 +154,7 @@ list-configs
 ```
 
 **Example fixture structure** (`fixtures/my-integration/`):
+
 ```
 my-integration/
 ├── init.lua                    # Main Neovim config

@@ -24,6 +24,7 @@ local config = {
   show_native_term_exit_tip = true,
   terminal_cmd = nil,
   auto_close = true,
+  env = {}, -- Custom environment variables for Claude terminal
   snacks_win_opts = {},
 }
 
@@ -153,6 +154,11 @@ local function get_claude_command_and_env(cmd_args)
     env_table["CLAUDE_CODE_SSE_PORT"] = tostring(sse_port_value)
   end
 
+  -- Merge custom environment variables from config
+  for key, value in pairs(config.env) do
+    env_table[key] = value
+  end
+
   return cmd_string, env_table
 end
 
@@ -186,7 +192,8 @@ end
 -- @field user_term_config.show_native_term_exit_tip boolean Show tip for exiting native terminal (default: true).
 -- @field user_term_config.snacks_win_opts table Opts to pass to `Snacks.terminal.open()` (default: {}).
 -- @param p_terminal_cmd string|nil The command to run in the terminal (from main config).
-function M.setup(user_term_config, p_terminal_cmd)
+-- @param p_env table|nil Custom environment variables to pass to the terminal (from main config).
+function M.setup(user_term_config, p_terminal_cmd, p_env)
   if user_term_config == nil then -- Allow nil, default to empty table silently
     user_term_config = {}
   elseif type(user_term_config) ~= "table" then -- Warn if it's not nil AND not a table
@@ -202,6 +209,16 @@ function M.setup(user_term_config, p_terminal_cmd)
       vim.log.levels.WARN
     )
     config.terminal_cmd = nil -- Fallback to default behavior
+  end
+
+  if p_env == nil or type(p_env) == "table" then
+    config.env = p_env or {}
+  else
+    vim.notify(
+      "claudecode.terminal.setup: Invalid env provided: " .. tostring(p_env) .. ". Using empty table.",
+      vim.log.levels.WARN
+    )
+    config.env = {}
   end
 
   for k, v in pairs(user_term_config) do

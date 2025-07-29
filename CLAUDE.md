@@ -37,6 +37,22 @@ claudecode.nvim - A Neovim plugin that implements the same WebSocket-based MCP p
 - `nix develop` - Enter development shell with all dependencies
 - `nix fmt` - Format all files using nix formatter
 
+### Integration Testing with Fixtures
+
+The `fixtures/` directory contains test Neovim configurations for verifying plugin integrations:
+
+- `vv <config>` - Start Neovim with a specific fixture configuration
+- `vve <config>` - Start Neovim with a fixture config in edit mode
+- `list-configs` - Show available fixture configurations
+- Source `fixtures/nvim-aliases.sh` to enable these commands
+
+**Available Fixtures**:
+- `netrw` - Tests with Neovim's built-in file explorer
+- `nvim-tree` - Tests with nvim-tree.lua file explorer
+- `oil` - Tests with oil.nvim file explorer
+
+**Usage**: `source fixtures/nvim-aliases.sh && vv oil` starts Neovim with oil.nvim configuration
+
 ## Architecture Overview
 
 ### Core Components
@@ -341,6 +357,22 @@ rg "0\.1\.0" .  # Should only show CHANGELOG.md historical entries
 3. **Validate Work**: Run `make` to ensure formatting, linting, and tests pass
 4. **Document Changes**: Update relevant documentation (this file, PROTOCOL.md, etc.)
 5. **Commit**: Only commit after successful `make` execution
+
+### Integration Development Guidelines
+
+**Adding New Integrations** (file explorers, terminals, etc.):
+
+1. **Implement Integration**: Add support in relevant modules (e.g., `lua/claudecode/tools/`)
+2. **Create Fixture Configuration**: **REQUIRED** - Add a complete Neovim config in `fixtures/[integration-name]/`
+3. **Test Integration**: Use fixture to verify functionality with `vv [integration-name]`
+4. **Update Documentation**: Add integration to fixtures list and relevant tool documentation
+5. **Run Full Test Suite**: Ensure `make` passes with new integration
+
+**Fixture Requirements**:
+- Complete Neovim configuration with plugin dependencies
+- Include `dev-claudecode.lua` with development keybindings
+- Test all relevant claudecode.nvim features with the integration
+- Document any integration-specific behaviors or limitations
 
 ### MCP Tool Development Guidelines
 

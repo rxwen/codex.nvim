@@ -50,6 +50,7 @@
           gnumake
           websocat
           jq
+          fzf
           # claude-code
         ];
       in

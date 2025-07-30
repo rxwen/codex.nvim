@@ -64,9 +64,9 @@ function M.start(config, auth_token)
 
       -- Notify main module about new connection for queue processing
       local main_module = require("claudecode")
-      if main_module._process_queued_mentions then
+      if main_module.process_mention_queue then
         vim.schedule(function()
-          main_module._process_queued_mentions()
+          main_module.process_mention_queue(true)
         end)
       end
     end,

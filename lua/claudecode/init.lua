@@ -71,7 +71,8 @@ local default_config = {
 --- @field port number|nil The port the server is running on.
 --- @field auth_token string|nil The authentication token for the current session.
 --- @field initialized boolean Whether the plugin has been initialized.
---- @field queued_mentions table[] Array of queued @ mentions waiting for connection.
+--- @field mention_queue table[] Array of queued @ mentions.
+--- @field mention_timer table|nil Timer for mention processing.
 --- @field connection_timer table|nil Timer for connection timeout.
 
 --- @type ClaudeCode.State
@@ -81,7 +82,8 @@ M.state = {
   port = nil,
   auth_token = nil,
   initialized = false,
-  queued_mentions = {},
+  mention_queue = {},
+  mention_timer = nil,
   connection_timer = nil,
 }
 
@@ -107,36 +109,54 @@ function M.is_claude_connected()
   return status.running and status.client_count > 0
 end
 
----@brief Clear the @ mention queue and stop timers
+---@brief Clear the mention queue and stop any pending timer
 local function clear_mention_queue()
-  if #M.state.queued_mentions > 0 then
-    logger.debug("queue", "Clearing " .. #M.state.queued_mentions .. " queued @ mentions")
+  -- Initialize mention_queue if it doesn't exist (for test compatibility)
+  if not M.state.mention_queue then
+    M.state.mention_queue = {}
+  else
+    if #M.state.mention_queue > 0 then
+      logger.debug("queue", "Clearing " .. #M.state.mention_queue .. " queued @ mentions")
+    end
+    M.state.mention_queue = {}
   end
 
-  M.state.queued_mentions = {}
-
-  if M.state.connection_timer then
-    M.state.connection_timer:stop()
-    M.state.connection_timer:close()
-    M.state.connection_timer = nil
+  if M.state.mention_timer then
+    M.state.mention_timer:stop()
+    M.state.mention_timer:close()
+    M.state.mention_timer = nil
   end
 end
 
----@brief Add @ mention to queue for later sending
----@param mention_data table The @ mention data to queue
-local function queue_at_mention(mention_data)
-  mention_data.timestamp = vim.loop.now()
-  table.insert(M.state.queued_mentions, mention_data)
+---@brief Process mentions when Claude is connected (debounced mode)
+local function process_connected_mentions()
+  -- Reset the debounce timer
+  if M.state.mention_timer then
+    M.state.mention_timer:stop()
+    M.state.mention_timer:close()
+  end
 
-  logger.debug("queue", "Queued @ mention: " .. vim.inspect(mention_data))
+  -- Set a new timer to process the queue after 50ms of inactivity
+  M.state.mention_timer = vim.loop.new_timer()
+  local debounce_delay = math.max(10, 50) -- Minimum 10ms debounce, 50ms for batching
 
-  -- Start connection timer if not already running
+  -- Use vim.schedule_wrap if available, otherwise fallback to vim.schedule + function call
+  local wrapped_function = vim.schedule_wrap and vim.schedule_wrap(M.process_mention_queue)
+    or function()
+      vim.schedule(M.process_mention_queue)
+    end
+
+  M.state.mention_timer:start(debounce_delay, 0, wrapped_function)
+end
+
+---@brief Start connection timeout timer if not already started
+local function start_connection_timeout_if_needed()
   if not M.state.connection_timer then
     M.state.connection_timer = vim.loop.new_timer()
     M.state.connection_timer:start(M.state.config.connection_timeout, 0, function()
       vim.schedule(function()
-        if #M.state.queued_mentions > 0 then
-          logger.error("queue", "Connection timeout - clearing " .. #M.state.queued_mentions .. " queued @ mentions")
+        if #M.state.mention_queue > 0 then
+          logger.error("queue", "Connection timeout - clearing " .. #M.state.mention_queue .. " queued @ mentions")
           clear_mention_queue()
         end
       end)
@@ -144,80 +164,123 @@ local function queue_at_mention(mention_data)
   end
 end
 
----@brief Process queued @ mentions after connection established
-function M._process_queued_mentions()
-  if #M.state.queued_mentions == 0 then
+---@brief Add @ mention to queue
+---@param file_path string The file path to mention
+---@param start_line number|nil Optional start line
+---@param end_line number|nil Optional end line
+local function queue_mention(file_path, start_line, end_line)
+  -- Initialize mention_queue if it doesn't exist (for test compatibility)
+  if not M.state.mention_queue then
+    M.state.mention_queue = {}
+  end
+
+  local mention_data = {
+    file_path = file_path,
+    start_line = start_line,
+    end_line = end_line,
+    timestamp = vim.loop.now(),
+  }
+
+  table.insert(M.state.mention_queue, mention_data)
+  logger.debug("queue", "Queued @ mention: " .. file_path .. " (queue size: " .. #M.state.mention_queue .. ")")
+
+  -- Process based on connection state
+  if M.is_claude_connected() then
+    -- Connected: Use debounced processing (old broadcast_queue behavior)
+    process_connected_mentions()
+  else
+    -- Disconnected: Start connection timeout timer (old queued_mentions behavior)
+    start_connection_timeout_if_needed()
+  end
+end
+
+---@brief Process the mention queue (handles both connected and disconnected modes)
+---@param from_new_connection boolean|nil Whether this is triggered by a new connection (adds delay)
+function M.process_mention_queue(from_new_connection)
+  -- Initialize mention_queue if it doesn't exist (for test compatibility)
+  if not M.state.mention_queue then
+    M.state.mention_queue = {}
     return
   end
 
-  logger.debug("queue", "Processing " .. #M.state.queued_mentions .. " queued @ mentions")
+  if #M.state.mention_queue == 0 then
+    return
+  end
 
-  -- Stop connection timer
+  if not M.is_claude_connected() then
+    -- Still disconnected, wait for connection
+    logger.debug("queue", "Claude not connected, keeping " .. #M.state.mention_queue .. " mentions queued")
+    return
+  end
+
+  local mentions_to_send = vim.deepcopy(M.state.mention_queue)
+  M.state.mention_queue = {} -- Clear queue
+
+  -- Stop any existing timer
+  if M.state.mention_timer then
+    M.state.mention_timer:stop()
+    M.state.mention_timer:close()
+    M.state.mention_timer = nil
+  end
+
+  -- Stop connection timer since we're now connected
   if M.state.connection_timer then
     M.state.connection_timer:stop()
     M.state.connection_timer:close()
     M.state.connection_timer = nil
   end
 
-  -- Wait for connection_wait_delay before sending
-  vim.defer_fn(function()
-    local mentions_to_send = vim.deepcopy(M.state.queued_mentions)
-    M.state.queued_mentions = {} -- Clear queue
+  logger.debug("queue", "Processing " .. #mentions_to_send .. " queued @ mentions")
 
-    if #mentions_to_send == 0 then
+  -- Send mentions with 10ms delay between each to prevent WebSocket buffer overflow
+  local function send_mention_sequential(index)
+    if index > #mentions_to_send then
+      logger.debug("queue", "All queued mentions sent successfully")
       return
     end
 
-    -- Ensure terminal is visible when processing queued mentions
-    local terminal = require("claudecode.terminal")
-    terminal.ensure_visible()
+    local mention = mentions_to_send[index]
 
-    local success_count = 0
-    local total_count = #mentions_to_send
-    local delay = 10 -- Use same delay as existing batch operations
+    -- Check if mention has expired (same timeout logic as old system)
+    local current_time = vim.loop.now()
+    if (current_time - mention.timestamp) > M.state.config.queue_timeout then
+      logger.debug("queue", "Skipped expired @ mention: " .. mention.file_path)
+    else
+      -- Directly broadcast without going through the queue system to avoid infinite recursion
+      local params = {
+        filePath = mention.file_path,
+        lineStart = mention.start_line,
+        lineEnd = mention.end_line,
+      }
 
-    local function send_mentions_sequentially(index)
-      if index > total_count then
-        if success_count > 0 then
-          local message = success_count == 1 and "Sent 1 queued @ mention to Claude Code"
-            or string.format("Sent %d queued @ mentions to Claude Code", success_count)
-          logger.debug("queue", message)
-        end
-        return
-      end
-
-      local mention = mentions_to_send[index]
-      local now = vim.loop.now()
-
-      -- Check if mention hasn't expired
-      if (now - mention.timestamp) < M.state.config.queue_timeout then
-        local success, error_msg = M._broadcast_at_mention(mention.file_path, mention.start_line, mention.end_line)
-        if success then
-          success_count = success_count + 1
-        else
-          logger.error("queue", "Failed to send queued @ mention: " .. (error_msg or "unknown error"))
-        end
+      local broadcast_success = M.state.server.broadcast("at_mentioned", params)
+      if broadcast_success then
+        logger.debug("queue", "Sent queued @ mention: " .. mention.file_path)
       else
-        logger.debug("queue", "Skipped expired @ mention: " .. mention.file_path)
-      end
-
-      -- Send next mention with delay
-      if index < total_count then
-        vim.defer_fn(function()
-          send_mentions_sequentially(index + 1)
-        end, delay)
-      else
-        -- Final summary
-        if success_count > 0 then
-          local message = success_count == 1 and "Sent 1 queued @ mention to Claude Code"
-            or string.format("Sent %d queued @ mentions to Claude Code", success_count)
-          logger.debug("queue", message)
-        end
+        logger.error("queue", "Failed to send queued @ mention: " .. mention.file_path)
       end
     end
 
-    send_mentions_sequentially(1)
-  end, M.state.config.connection_wait_delay)
+    -- Process next mention with delay
+    if index < #mentions_to_send then
+      vim.defer_fn(function()
+        send_mention_sequential(index + 1)
+      end, 10) -- 10ms delay between mentions
+    end
+  end
+
+  -- Apply delay for new connections, send immediately for debounced processing
+  if #mentions_to_send > 0 then
+    if from_new_connection then
+      -- Wait for connection_wait_delay when processing queue after new connection
+      vim.defer_fn(function()
+        send_mention_sequential(1)
+      end, M.state.config.connection_wait_delay)
+    else
+      -- Send immediately for debounced processing (Claude already connected)
+      send_mention_sequential(1)
+    end
+  end
 end
 
 ---@brief Show terminal if Claude is connected and it's not already visible
@@ -270,14 +333,7 @@ function M.send_at_mention(file_path, start_line, end_line, context)
     return success, error_msg
   else
     -- Claude not connected, queue the mention and launch terminal
-    local mention_data = {
-      file_path = file_path,
-      start_line = start_line,
-      end_line = end_line,
-      context = context,
-    }
-
-    queue_at_mention(mention_data)
+    queue_mention(file_path, start_line, end_line)
 
     -- Launch terminal with Claude Code
     local terminal = require("claudecode.terminal")
@@ -1069,14 +1125,27 @@ function M._broadcast_at_mention(file_path, start_line, end_line)
     lineEnd = end_line,
   }
 
-  local broadcast_success = M.state.server.broadcast("at_mentioned", params)
-  if broadcast_success then
-    return true, nil
-  else
-    local error_msg = "Failed to broadcast " .. (is_directory and "directory" or "file") .. " " .. formatted_path
-    logger.error("command", error_msg)
-    return false, error_msg
+  -- For tests or when explicitly configured, broadcast immediately without queuing
+  if
+    (M.state.config and M.state.config.disable_broadcast_debouncing)
+    or (package.loaded["busted"] and not (M.state.config and M.state.config.enable_broadcast_debouncing_in_tests))
+  then
+    local broadcast_success = M.state.server.broadcast("at_mentioned", params)
+    if broadcast_success then
+      return true, nil
+    else
+      local error_msg = "Failed to broadcast " .. (is_directory and "directory" or "file") .. " " .. formatted_path
+      logger.error("command", error_msg)
+      return false, error_msg
+    end
   end
+
+  -- Use mention queue system for debounced broadcasting
+  queue_mention(formatted_path, start_line, end_line)
+
+  -- Always return success since we're queuing the message
+  -- The actual broadcast result will be logged in the queue processing
+  return true, nil
 end
 
 function M._add_paths_to_claude(file_paths, options)

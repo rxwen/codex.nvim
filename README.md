@@ -151,7 +151,7 @@ For deep technical details, see [ARCHITECTURE.md](./ARCHITECTURE.md).
       split_width_percentage = 0.30,
       provider = "auto", -- "auto", "snacks", "native", or custom provider table
       auto_close = true,
-      snacks_win_opts = {}, -- Opts to pass to `Snacks.terminal.open()`
+      snacks_win_opts = {}, -- Opts to pass to `Snacks.terminal.open()` - see Floating Window section below
     },
 
     -- Diff Integration
@@ -166,6 +166,158 @@ For deep technical details, see [ARCHITECTURE.md](./ARCHITECTURE.md).
   },
 }
 ```
+
+## Floating Window Configuration
+
+The `snacks_win_opts` configuration allows you to create floating Claude Code terminals with custom positioning, sizing, and key bindings. Here are several practical examples:
+
+### Basic Floating Window with Ctrl+, Toggle
+
+```lua
+local toggle_key = "<C-,>"
+return {
+  {
+    "coder/claudecode.nvim",
+    dependencies = { "folke/snacks.nvim" },
+    keys = {
+      { toggle_key, "<cmd>ClaudeCodeFocus<cr>", desc = "Claude Code", mode = { "n", "x" } },
+    },
+    opts = {
+      terminal = {
+        ---@module "snacks"
+        ---@type snacks.win.Config|{}
+        snacks_win_opts = {
+          position = "float",
+          width = 0.9,
+          height = 0.9,
+          keys = {
+            claude_hide = {
+              toggle_key,
+              function(self)
+                self:hide()
+              end,
+              mode = "t",
+              desc = "Hide",
+            },
+          },
+        },
+      },
+    },
+  },
+}
+```
+
+### Alternative with Meta+, (Alt+,) Toggle
+
+```lua
+local toggle_key = "<M-,>"  -- Alt/Meta + comma
+return {
+  {
+    "coder/claudecode.nvim",
+    dependencies = { "folke/snacks.nvim" },
+    keys = {
+      { toggle_key, "<cmd>ClaudeCodeFocus<cr>", desc = "Claude Code", mode = { "n", "x" } },
+    },
+    opts = {
+      terminal = {
+        snacks_win_opts = {
+          position = "float",
+          width = 0.8,
+          height = 0.8,
+          border = "rounded",
+          keys = {
+            claude_hide = { toggle_key, function(self) self:hide() end, mode = "t", desc = "Hide" },
+          },
+        },
+      },
+    },
+  },
+}
+```
+
+### Centered Floating Window with Custom Styling
+
+```lua
+require("claudecode").setup({
+  terminal = {
+    snacks_win_opts = {
+      position = "float",
+      width = 0.6,
+      height = 0.6,
+      border = "double",
+      backdrop = 80,
+      keys = {
+        claude_hide = { "<Esc>", function(self) self:hide() end, mode = "t", desc = "Hide" },
+        claude_close = { "q", "close", mode = "n", desc = "Close" },
+      },
+    },
+  },
+})
+```
+
+### Multiple Key Binding Options
+
+```lua
+{
+  "coder/claudecode.nvim",
+  dependencies = { "folke/snacks.nvim" },
+  keys = {
+    { "<C-,>", "<cmd>ClaudeCodeFocus<cr>", desc = "Claude Code (Ctrl+,)", mode = { "n", "x" } },
+    { "<M-,>", "<cmd>ClaudeCodeFocus<cr>", desc = "Claude Code (Alt+,)", mode = { "n", "x" } },
+    { "<leader>tc", "<cmd>ClaudeCodeFocus<cr>", desc = "Toggle Claude", mode = { "n", "x" } },
+  },
+  opts = {
+    terminal = {
+      snacks_win_opts = {
+        position = "float",
+        width = 0.85,
+        height = 0.85,
+        border = "rounded",
+        keys = {
+          -- Multiple ways to hide from terminal mode
+          claude_hide_ctrl = { "<C-,>", function(self) self:hide() end, mode = "t", desc = "Hide (Ctrl+,)" },
+          claude_hide_alt = { "<M-,>", function(self) self:hide() end, mode = "t", desc = "Hide (Alt+,)" },
+          claude_hide_esc = { "<C-\\><C-n>", function(self) self:hide() end, mode = "t", desc = "Hide (Ctrl+\\)" },
+        },
+      },
+    },
+  },
+}
+```
+
+### Window Position Variations
+
+```lua
+-- Bottom floating (like a drawer)
+snacks_win_opts = {
+  position = "bottom",
+  height = 0.4,
+  width = 1.0,
+  border = "single",
+}
+
+-- Side floating panel
+snacks_win_opts = {
+  position = "right",
+  width = 0.4,
+  height = 1.0,
+  border = "rounded",
+}
+
+-- Small centered popup
+snacks_win_opts = {
+  position = "float",
+  width = 120,  -- Fixed width in columns
+  height = 30,  -- Fixed height in rows
+  border = "double",
+  backdrop = 90,
+}
+```
+
+For complete configuration options, see:
+
+- [Snacks.nvim Terminal Documentation](https://github.com/folke/snacks.nvim/blob/main/docs/terminal.md)
+- [Snacks.nvim Window Documentation](https://github.com/folke/snacks.nvim/blob/main/docs/win.md)
 
 ## Custom Terminal Providers
 

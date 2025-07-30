@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Claude Code Hook: Format Lua Files
-# Triggers after Claude edits/writes Lua files and runs nix fmt
+# Claude Code Hook: Format Files
+# Triggers after Claude edits/writes files and runs nix fmt
 #
 # Environment variables provided by Claude Code:
 # - CLAUDE_PROJECT_DIR: Path to the project directory
@@ -43,27 +43,21 @@ get_file_path() {
     return
   fi
 
-  # Try extracting any .lua file path from the input
-  local lua_path
-  lua_path=$(echo "$hook_input" | grep -o '"[^"]*\.lua"' | sed 's/"//g' | head -1)
+  # Try extracting any file path from the input
+  local any_file_path
+  any_file_path=$(echo "$hook_input" | grep -o '"[^"]*\.[^"]*"' | sed 's/"//g' | head -1)
 
-  if [ -n "$lua_path" ]; then
-    echo "$lua_path"
+  if [ -n "$any_file_path" ]; then
+    echo "$any_file_path"
     return
   fi
 
   log "DEBUG: Could not extract file path from hook input"
 }
 
-# Check if file is a Lua file
-is_lua_file() {
-  local file="$1"
-  [[ $file =~ \.lua$ ]]
-}
-
 # Main logic
 main() {
-  log "${YELLOW}Claude Code Hook: Lua Formatter${NC}"
+  log "${YELLOW}Claude Code Hook: File Formatter${NC}"
 
   # Get the file path from tool arguments
   FILE_PATH=$(get_file_path)
@@ -75,19 +69,13 @@ main() {
 
   log "Tool: ${CLAUDE_TOOL_NAME:-unknown}, File: $FILE_PATH"
 
-  # Check if it's a Lua file
-  if ! is_lua_file "$FILE_PATH"; then
-    log "Skipping: Not a Lua file ($FILE_PATH)"
-    exit 0
-  fi
-
   # Check if file exists
   if [ ! -f "$FILE_PATH" ]; then
     log "${RED}Error: File does not exist: $FILE_PATH${NC}"
     exit 1
   fi
 
-  log "${YELLOW}Formatting Lua file with nix fmt...${NC}"
+  log "${YELLOW}Formatting file with nix fmt...${NC}"
 
   # Change to project directory
   cd "${CLAUDE_PROJECT_DIR}"

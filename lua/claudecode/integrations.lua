@@ -1,5 +1,5 @@
----Tree integration module for ClaudeCode.nvim
----Handles detection and selection of files from nvim-tree, neo-tree, and oil.nvim
+--- Tree integration module for ClaudeCode.nvim
+--- Handles detection and selection of files from nvim-tree, neo-tree, mini.files, and oil.nvim
 ---@module 'claudecode.integrations'
 local M = {}
 

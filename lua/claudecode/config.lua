@@ -52,6 +52,28 @@ function M.validate(config)
 
   assert(config.terminal_cmd == nil or type(config.terminal_cmd) == "string", "terminal_cmd must be nil or a string")
 
+  -- Validate terminal config
+  assert(type(config.terminal) == "table", "terminal must be a table")
+
+  -- Validate provider_opts if present
+  if config.terminal.provider_opts then
+    assert(type(config.terminal.provider_opts) == "table", "terminal.provider_opts must be a table")
+
+    -- Validate external_terminal_cmd in provider_opts
+    if config.terminal.provider_opts.external_terminal_cmd then
+      assert(
+        type(config.terminal.provider_opts.external_terminal_cmd) == "string",
+        "terminal.provider_opts.external_terminal_cmd must be a string"
+      )
+      if config.terminal.provider_opts.external_terminal_cmd ~= "" then
+        assert(
+          config.terminal.provider_opts.external_terminal_cmd:find("%%s"),
+          "terminal.provider_opts.external_terminal_cmd must contain '%s' placeholder for the Claude command"
+        )
+      end
+    end
+  end
+
   local valid_log_levels = { "trace", "debug", "info", "warn", "error" }
   local is_valid_log_level = false
   for _, level in ipairs(valid_log_levels) do

@@ -49,6 +49,7 @@ function M.open(cmd_string, env_table)
 
   local cmd_parts
   local full_command
+  local cwd_for_jobstart = nil
 
   -- Handle both string and function types
   if type(external_cmd) == "function" then
@@ -81,14 +82,33 @@ function M.open(cmd_string, env_table)
       return
     end
 
-    -- Replace %s in the template with the Claude command
-    if not external_cmd:find("%%s") then
-      vim.notify("external_terminal_cmd must contain '%s' placeholder for the Claude command.", vim.log.levels.ERROR)
+    -- Count the number of %s placeholders and format accordingly
+    -- 1 placeholder: backward compatible, just command ("alacritty -e %s")
+    -- 2 placeholders: cwd and command ("alacritty --working-directory %s -e %s")
+    local _, placeholder_count = external_cmd:gsub("%%s", "")
+
+    if placeholder_count == 0 then
+      vim.notify("external_terminal_cmd must contain '%s' placeholder(s) for the command.", vim.log.levels.ERROR)
+      return
+    elseif placeholder_count == 1 then
+      -- Backward compatible: just the command
+      full_command = string.format(external_cmd, cmd_string)
+    elseif placeholder_count == 2 then
+      -- New feature: cwd and command
+      local cwd = vim.fn.getcwd()
+      cwd_for_jobstart = cwd
+      full_command = string.format(external_cmd, cwd, cmd_string)
+    else
+      vim.notify(
+        string.format(
+          "external_terminal_cmd must use 1 '%%s' (command) or 2 '%%s' placeholders (cwd, command); got %d",
+          placeholder_count
+        ),
+        vim.log.levels.ERROR
+      )
       return
     end
 
-    -- Build command by replacing %s with Claude command and splitting
-    full_command = string.format(external_cmd, cmd_string)
     cmd_parts = vim.split(full_command, " ")
   else
     vim.notify("external_terminal_cmd must be a string or function, got: " .. type(external_cmd), vim.log.levels.ERROR)
@@ -96,9 +116,13 @@ function M.open(cmd_string, env_table)
   end
 
   -- Start the external terminal as a detached process
+  -- Set cwd for jobstart when available to improve robustness even if the terminal ignores it
+  cwd_for_jobstart = cwd_for_jobstart or (vim.fn.getcwd and vim.fn.getcwd() or nil)
+
   jobid = vim.fn.jobstart(cmd_parts, {
     detach = true,
     env = env_table,
+    cwd = cwd_for_jobstart,
     on_exit = function(job_id, exit_code, _)
       vim.schedule(function()
         if job_id == jobid then

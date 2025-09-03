@@ -18,6 +18,9 @@ describe("claudecode.terminal.external", function()
           return 123
         end), -- Return valid job id
         jobstop = spy.new(function() end),
+        getcwd = spy.new(function()
+          return "/cwd"
+        end),
       },
       notify = spy.new(function() end),
       log = {
@@ -91,6 +94,7 @@ describe("claudecode.terminal.external", function()
       local call_args = mock_vim.fn.jobstart.calls[1].vals
       assert.are.same({ "alacritty", "-e", "claude", "--help" }, call_args[1])
       assert.are.same({ ENABLE_IDE_INTEGRATION = "true" }, call_args[2].env)
+      assert.are.equal("/cwd", call_args[2].cwd)
     end)
 
     it("should error if string command missing %s placeholder", function()
@@ -105,7 +109,7 @@ describe("claudecode.terminal.external", function()
 
       assert
         .spy(mock_vim.notify)
-        .was_called_with("external_terminal_cmd must contain '%s' placeholder for the Claude command.", mock_vim.log.levels.ERROR)
+        .was_called_with("external_terminal_cmd must contain '%s' placeholder(s) for the command.", mock_vim.log.levels.ERROR)
       assert.spy(mock_vim.fn.jobstart).was_not_called()
     end)
 
@@ -120,6 +124,45 @@ describe("claudecode.terminal.external", function()
       external_provider.open("claude", {})
 
       assert.spy(mock_vim.notify).was_called()
+      assert.spy(mock_vim.fn.jobstart).was_not_called()
+    end)
+
+    it("should handle string with two placeholders (cwd and command)", function()
+      -- Mock vim.fn.getcwd to return a known directory
+      mock_vim.fn.getcwd = spy.new(function()
+        return "/test/project"
+      end)
+
+      local config = {
+        provider_opts = {
+          external_terminal_cmd = "alacritty --working-directory %s -e %s",
+        },
+      }
+      external_provider.setup(config)
+
+      external_provider.open("claude --help", { ENABLE_IDE_INTEGRATION = "true" })
+
+      assert.spy(mock_vim.fn.jobstart).was_called(1)
+      local call_args = mock_vim.fn.jobstart.calls[1].vals
+      assert.are.same({ "alacritty", "--working-directory", "/test/project", "-e", "claude", "--help" }, call_args[1])
+      assert.are.same({ ENABLE_IDE_INTEGRATION = "true" }, call_args[2].env)
+      assert.are.equal("/test/project", call_args[2].cwd)
+    end)
+
+    it("should error if string has more than two placeholders", function()
+      local config = {
+        provider_opts = {
+          external_terminal_cmd = "alacritty --working-directory %s -e %s --title %s",
+        },
+      }
+      external_provider.setup(config)
+
+      external_provider.open("claude --help", {})
+
+      assert.spy(mock_vim.notify).was_called_with(
+        "external_terminal_cmd must use 1 '%s' (command) or 2 '%s' placeholders (cwd, command); got 3",
+        mock_vim.log.levels.ERROR
+      )
       assert.spy(mock_vim.fn.jobstart).was_not_called()
     end)
   end)
@@ -141,6 +184,7 @@ describe("claudecode.terminal.external", function()
       local call_args = mock_vim.fn.jobstart.calls[1].vals
       assert.are.same({ "kitty", "claude", "--help" }, call_args[1])
       assert.are.same({ ENABLE_IDE_INTEGRATION = "true" }, call_args[2].env)
+      assert.are.equal("/cwd", call_args[2].cwd)
     end)
 
     it("should handle function returning table", function()
@@ -158,6 +202,7 @@ describe("claudecode.terminal.external", function()
       assert.spy(mock_vim.fn.jobstart).was_called(1)
       local call_args = mock_vim.fn.jobstart.calls[1].vals
       assert.are.same({ "osascript", "-e", 'tell app "Terminal" to do script "claude"' }, call_args[1])
+      assert.are.equal("/cwd", call_args[2].cwd)
     end)
 
     it("should pass cmd and env to function", function()

@@ -89,7 +89,10 @@ function M.validate(config)
   assert(is_valid_log_level, "log_level must be one of: " .. table.concat(valid_log_levels, ", "))
 
   assert(type(config.track_selection) == "boolean", "track_selection must be a boolean")
-  assert(type(config.focus_after_send) == "boolean", "focus_after_send must be a boolean")
+  -- Allow absence in direct validate() calls; apply() supplies default
+  if config.focus_after_send ~= nil then
+    assert(type(config.focus_after_send) == "boolean", "focus_after_send must be a boolean")
+  end
 
   assert(
     type(config.visual_demotion_delay_ms) == "number" and config.visual_demotion_delay_ms >= 0,
@@ -131,7 +134,9 @@ function M.validate(config)
   if config.diff_opts.on_new_file_reject ~= nil then
     assert(
       type(config.diff_opts.on_new_file_reject) == "string"
-        and (config.diff_opts.on_new_file_reject == "keep_empty" or config.diff_opts.on_new_file_reject == "close_window"),
+        and (
+          config.diff_opts.on_new_file_reject == "keep_empty" or config.diff_opts.on_new_file_reject == "close_window"
+        ),
       "diff_opts.on_new_file_reject must be 'keep_empty' or 'close_window'"
     )
   end

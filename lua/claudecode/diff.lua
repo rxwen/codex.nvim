@@ -814,10 +814,19 @@ function M._resolve_diff_as_rejected(tab_name)
   diff_data.status = "rejected"
   diff_data.result_content = result
 
-  -- Do not perform UI cleanup here; wait for explicit close_tab tool call.
   -- Resume the coroutine with the result (for deferred response system)
   if diff_data.resolution_callback then
     diff_data.resolution_callback(result)
+  end
+
+  -- For new-file diffs in the current tab, when configured to keep the empty placeholder,
+  -- we eagerly clean up the diff UI and state. This preserves any reused empty buffer.
+  local keep_behavior = nil
+  if config and config.diff_opts then
+    keep_behavior = config.diff_opts.on_new_file_reject
+  end
+  if diff_data.is_new_file and keep_behavior == "keep_empty" and not diff_data.created_new_tab then
+    M._cleanup_diff_state(tab_name, "diff rejected (keep_empty)")
   end
 end
 
@@ -930,13 +939,18 @@ function M._create_diff_view_from_window(
     original_window = choice.original_win
   end
 
-  -- For new files, we create an empty buffer for the original side
-  if is_new_file then
-    original_buffer_created_by_plugin = true
+  -- For new files, prefer reusing an existing empty buffer in the chosen window
+  local original_buffer
+  if is_new_file and choice.reused_buf and vim.api.nvim_buf_is_valid(choice.reused_buf) then
+    original_buffer = choice.reused_buf
+    original_buffer_created_by_plugin = false
+  else
+    if is_new_file then
+      original_buffer_created_by_plugin = true
+    end
+    -- Load the original-side buffer into the chosen window
+    original_buffer = load_original_buffer(original_window, old_file_path, is_new_file, existing_buffer)
   end
-
-  -- Load the original-side buffer into the chosen window
-  local original_buffer = load_original_buffer(original_window, old_file_path, is_new_file, existing_buffer)
 
   -- Set up the proposed buffer and finalize the diff layout
   local new_win = setup_new_buffer(

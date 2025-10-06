@@ -13,7 +13,7 @@ M.defaults = {
   terminal_cmd = nil,
   env = {}, -- Custom environment variables for Codex terminal
   log_level = "info",
-  track_selection = true,
+  track_selection = false,
   -- When true, focus Codex terminal after a successful send while connected
   focus_after_send = false,
   visual_demotion_delay_ms = 50, -- Milliseconds to wait before demoting a visual selection

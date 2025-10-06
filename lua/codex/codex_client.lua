@@ -462,9 +462,6 @@ function M.send_selection(text, metadata)
 
   local message = string.format("%s:\n\n%s", header, text)
   local ok, err = send_user_message(message)
-  if ok then
-    logger.info("codex", string.format("Selection sent: %s", header))
-  end
   return ok, err
 end
 

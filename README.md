@@ -27,7 +27,7 @@ OpenAI's Codex CLI focuses on VS Code-style integrations. As a Neovim user, I wa
 
 ```lua
 {
-  "coder/codex.nvim",
+  "rxwen/codex.nvim",
   dependencies = { "folke/snacks.nvim" },
   config = true,
   keys = {
@@ -102,26 +102,12 @@ By default the plugin executes `codex app-server`. If you installed the CLI some
 
 ## Working with Diffs
 
-When Claude proposes changes, the plugin opens a native Neovim diff view:
+When Codex proposes changes, the plugin opens a native Neovim diff view:
 
 - **Accept**: `:w` (save) or `<leader>aa`
 - **Reject**: `:q` or `<leader>ad`
 
-You can edit Claude's suggestions before accepting them.
-
-## How It Works
-
-This plugin creates a WebSocket server that Claude Code CLI connects to, implementing the same protocol as the official VS Code extension. When you launch Claude, it automatically detects Neovim and gains full access to your editor.
-
-The protocol uses a WebSocket-based variant of MCP (Model Context Protocol) that:
-
-1. Creates a WebSocket server on a random port
-2. Writes a lock file to `~/.claude/ide/[port].lock` (or `$CLAUDE_CONFIG_DIR/ide/[port].lock` if `CLAUDE_CONFIG_DIR` is set) with connection info
-3. Sets environment variables that tell Claude where to connect
-4. Implements MCP tools that Claude can call
-
-📖 **[Read the full reverse-engineering story →](./STORY.md)**
-🔧 **[Complete protocol documentation →](./PROTOCOL.md)**
+You can edit Codex's suggestions before accepting them.
 
 ## Architecture
 
@@ -139,7 +125,7 @@ For deep technical details, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ```lua
 {
-  "coder/codex.nvim",
+  "rxwen/codex.nvim",
   dependencies = { "folke/snacks.nvim" },
   opts = {
     -- Server Configuration
@@ -233,7 +219,7 @@ The `snacks_win_opts` configuration allows you to create floating Claude Code te
 local toggle_key = "<C-,>"
 return {
   {
-    "coder/codex.nvim",
+    "rxwen/codex.nvim",
     dependencies = { "folke/snacks.nvim" },
     keys = {
       { toggle_key, "<cmd>CodexFocus<cr>", desc = "Claude Code", mode = { "n", "x" } },
@@ -270,7 +256,7 @@ return {
 local toggle_key = "<M-,>"  -- Alt/Meta + comma
 return {
   {
-    "coder/codex.nvim",
+    "rxwen/codex.nvim",
     dependencies = { "folke/snacks.nvim" },
     keys = {
       { toggle_key, "<cmd>CodexFocus<cr>", desc = "Claude Code", mode = { "n", "x" } },
@@ -322,7 +308,7 @@ require("codex").setup({
 
 ```lua
 {
-  "coder/codex.nvim",
+  "rxwen/codex.nvim",
   dependencies = { "folke/snacks.nvim" },
   keys = {
     { "<C-,>", "<cmd>CodexFocus<cr>", desc = "Claude Code (Ctrl+,)", mode = { "n", "x" } },
@@ -395,7 +381,7 @@ Run Claude Code without any terminal management inside Neovim. This is useful fo
 
 ```lua
 {
-  "coder/codex.nvim",
+  "rxwen/codex.nvim",
   opts = {
     terminal = {
       provider = "none", -- no UI actions; server + tools remain available
@@ -416,7 +402,7 @@ Run Claude Code in a separate terminal application outside of Neovim:
 ```lua
 -- Using a string template (simple)
 {
-  "coder/codex.nvim",
+  "rxwen/codex.nvim",
   opts = {
     terminal = {
       provider = "external",
@@ -430,7 +416,7 @@ Run Claude Code in a separate terminal application outside of Neovim:
 
 -- Using a function for dynamic command generation (advanced)
 {
-  "coder/codex.nvim",
+  "rxwen/codex.nvim",
   opts = {
     terminal = {
       provider = "external",

@@ -1,10 +1,8 @@
---- Module to manage a dedicated vertical split terminal for Claude Code.
+--- Module to manage a dedicated vertical split terminal for Codex.
 --- Supports Snacks.nvim or a native Neovim terminal fallback.
 --- @module 'claudecode.terminal'
 
 local M = {}
-
-local claudecode_server_module = require("claudecode.server.init")
 
 ---@type ClaudeCodeTerminalConfig
 local defaults = {
@@ -289,12 +287,11 @@ end
 ---@param cmd_args string? Optional arguments to append to the command
 ---@return string cmd_string The command string
 ---@return table env_table The environment variables table
-local function get_claude_command_and_env(cmd_args)
-  -- Inline get_claude_command logic
+local function get_codex_command_and_env(cmd_args)
   local cmd_from_config = defaults.terminal_cmd
   local base_cmd
   if not cmd_from_config or cmd_from_config == "" then
-    base_cmd = "claude" -- Default if not configured
+    base_cmd = "codex"
   else
     base_cmd = cmd_from_config
   end
@@ -306,17 +303,8 @@ local function get_claude_command_and_env(cmd_args)
     cmd_string = base_cmd
   end
 
-  local sse_port_value = claudecode_server_module.state.port
-  local env_table = {
-    ENABLE_IDE_INTEGRATION = "true",
-    FORCE_CODE_TERMINAL = "true",
-  }
+  local env_table = {}
 
-  if sse_port_value then
-    env_table["CLAUDE_CODE_SSE_PORT"] = tostring(sse_port_value)
-  end
-
-  -- Merge custom environment variables from config
   for key, value in pairs(defaults.env) do
     env_table[key] = value
   end
@@ -346,9 +334,9 @@ local function ensure_terminal_visible_no_focus(opts_override, cmd_args)
 
   -- Terminal is not visible, open it without focus
   local effective_config = build_config(opts_override)
-  local cmd_string, claude_env_table = get_claude_command_and_env(cmd_args)
+  local cmd_string, codex_env_table = get_codex_command_and_env(cmd_args)
 
-  provider.open(cmd_string, claude_env_table, effective_config, false) -- false = don't focus
+  provider.open(cmd_string, codex_env_table, effective_config, false) -- false = don't focus
   return true
 end
 
@@ -493,64 +481,64 @@ function M.setup(user_term_config, p_terminal_cmd, p_env)
   get_provider().setup(defaults)
 end
 
----Opens or focuses the Claude terminal.
+---Opens or focuses the Codex terminal.
 ---@param opts_override table? Overrides for terminal appearance (split_side, split_width_percentage).
----@param cmd_args string? Arguments to append to the claude command.
+---@param cmd_args string? Arguments to append to the Codex command.
 function M.open(opts_override, cmd_args)
   local effective_config = build_config(opts_override)
-  local cmd_string, claude_env_table = get_claude_command_and_env(cmd_args)
+  local cmd_string, codex_env_table = get_codex_command_and_env(cmd_args)
 
-  get_provider().open(cmd_string, claude_env_table, effective_config)
+  get_provider().open(cmd_string, codex_env_table, effective_config)
 end
 
----Closes the managed Claude terminal if it's open and valid.
+---Closes the managed Codex terminal if it's open and valid.
 function M.close()
   get_provider().close()
 end
 
----Simple toggle: always show/hide the Claude terminal regardless of focus.
+---Simple toggle: always show/hide the Codex terminal regardless of focus.
 ---@param opts_override table? Overrides for terminal appearance (split_side, split_width_percentage).
----@param cmd_args string? Arguments to append to the claude command.
+---@param cmd_args string? Arguments to append to the Codex command.
 function M.simple_toggle(opts_override, cmd_args)
   local effective_config = build_config(opts_override)
-  local cmd_string, claude_env_table = get_claude_command_and_env(cmd_args)
+  local cmd_string, codex_env_table = get_codex_command_and_env(cmd_args)
 
-  get_provider().simple_toggle(cmd_string, claude_env_table, effective_config)
+  get_provider().simple_toggle(cmd_string, codex_env_table, effective_config)
 end
 
 ---Smart focus toggle: switches to terminal if not focused, hides if currently focused.
 ---@param opts_override table (optional) Overrides for terminal appearance (split_side, split_width_percentage).
----@param cmd_args string|nil (optional) Arguments to append to the claude command.
+---@param cmd_args string|nil (optional) Arguments to append to the Codex command.
 function M.focus_toggle(opts_override, cmd_args)
   local effective_config = build_config(opts_override)
-  local cmd_string, claude_env_table = get_claude_command_and_env(cmd_args)
+  local cmd_string, codex_env_table = get_codex_command_and_env(cmd_args)
 
-  get_provider().focus_toggle(cmd_string, claude_env_table, effective_config)
+  get_provider().focus_toggle(cmd_string, codex_env_table, effective_config)
 end
 
 ---Toggle open terminal without focus if not already visible, otherwise do nothing.
 ---@param opts_override table? Overrides for terminal appearance (split_side, split_width_percentage).
----@param cmd_args string? Arguments to append to the claude command.
+---@param cmd_args string? Arguments to append to the Codex command.
 function M.toggle_open_no_focus(opts_override, cmd_args)
   ensure_terminal_visible_no_focus(opts_override, cmd_args)
 end
 
 ---Ensures terminal is visible without changing focus. Creates if necessary, shows if hidden.
 ---@param opts_override table? Overrides for terminal appearance (split_side, split_width_percentage).
----@param cmd_args string? Arguments to append to the claude command.
+---@param cmd_args string? Arguments to append to the Codex command.
 function M.ensure_visible(opts_override, cmd_args)
   ensure_terminal_visible_no_focus(opts_override, cmd_args)
 end
 
----Toggles the Claude terminal open or closed (legacy function - use simple_toggle or focus_toggle).
+---Toggles the Codex terminal open or closed (legacy function - use simple_toggle or focus_toggle).
 ---@param opts_override table? Overrides for terminal appearance (split_side, split_width_percentage).
----@param cmd_args string? Arguments to append to the claude command.
+---@param cmd_args string? Arguments to append to the Codex command.
 function M.toggle(opts_override, cmd_args)
   -- Default to simple toggle for backward compatibility
   M.simple_toggle(opts_override, cmd_args)
 end
 
----Gets the buffer number of the currently active Claude Code terminal.
+---Gets the buffer number of the currently active Codex terminal.
 ---This checks both Snacks and native fallback terminals.
 ---@return number|nil The buffer number if an active terminal is found, otherwise nil.
 function M.get_active_terminal_bufnr()

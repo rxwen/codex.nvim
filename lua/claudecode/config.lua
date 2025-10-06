@@ -1,5 +1,5 @@
 ---@brief [[
---- Manages configuration for the Claude Code Neovim integration.
+--- Manages configuration for the Codex Neovim integration.
 --- Provides default settings, validation, and application of user-defined configurations.
 ---@brief ]]
 ---@module 'claudecode.config'
@@ -11,7 +11,7 @@ M.defaults = {
   port_range = { min = 10000, max = 65535 },
   auto_start = true,
   terminal_cmd = nil,
-  env = {}, -- Custom environment variables for Claude terminal
+  env = {}, -- Custom environment variables for Codex terminal
   log_level = "info",
   track_selection = true,
   -- When true, focus Claude terminal after a successful send while connected
@@ -28,11 +28,13 @@ M.defaults = {
     on_new_file_reject = "keep_empty", -- "keep_empty" leaves an empty buffer; "close_window" closes the placeholder split
   },
   models = {
-    { name = "Claude Opus 4.1 (Latest)", value = "opus" },
-    { name = "Claude Sonnet 4.5 (Latest)", value = "sonnet" },
-    { name = "Opusplan: Claude Opus 4.1 (Latest) + Sonnet 4.5 (Latest)", value = "opusplan" },
-    { name = "Claude Haiku 3.5 (Latest)", value = "haiku" },
+    { name = "GPT-5 Codex", value = "gpt-5-codex" },
+    { name = "GPT-5", value = "gpt-5" },
   },
+  codex_cmd = "codex",
+  codex_approval_policy = nil,
+  codex_sandbox_mode = nil,
+  default_model = "gpt-5-codex",
   terminal = nil, -- Will be lazy-loaded to avoid circular dependency
 }
 
@@ -73,7 +75,7 @@ function M.validate(config)
       if cmd_type == "string" and config.terminal.provider_opts.external_terminal_cmd ~= "" then
         assert(
           config.terminal.provider_opts.external_terminal_cmd:find("%%s"),
-          "terminal.provider_opts.external_terminal_cmd must contain '%s' placeholder for the Claude command"
+          "terminal.provider_opts.external_terminal_cmd must contain '%s' placeholder for the Codex command"
         )
       end
     end
@@ -171,6 +173,22 @@ function M.validate(config)
     assert(type(model) == "table", "models[" .. i .. "] must be a table")
     assert(type(model.name) == "string" and model.name ~= "", "models[" .. i .. "].name must be a non-empty string")
     assert(type(model.value) == "string" and model.value ~= "", "models[" .. i .. "].value must be a non-empty string")
+  end
+
+  if config.codex_cmd ~= nil then
+    assert(type(config.codex_cmd) == "string" and config.codex_cmd ~= "", "codex_cmd must be a non-empty string if provided")
+  end
+
+  if config.codex_approval_policy ~= nil then
+    assert(type(config.codex_approval_policy) == "string", "codex_approval_policy must be a string")
+  end
+
+  if config.codex_sandbox_mode ~= nil then
+    assert(type(config.codex_sandbox_mode) == "string", "codex_sandbox_mode must be a string")
+  end
+
+  if config.default_model ~= nil then
+    assert(type(config.default_model) == "string" and config.default_model ~= "", "default_model must be a non-empty string")
   end
 
   return true

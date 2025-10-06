@@ -1,6 +1,6 @@
 ---@brief [[
---- Claude Code Neovim Integration
---- This plugin integrates Claude Code CLI with Neovim, enabling
+--- Codex Neovim Integration
+--- This plugin integrates Codex CLI with Neovim, enabling
 --- seamless AI-assisted coding experiences directly in Neovim.
 ---@brief ]]
 
@@ -8,6 +8,7 @@
 local M = {}
 
 local logger = require("claudecode.logger")
+local codex_client = require("claudecode.codex_client")
 
 --- Current plugin version
 ---@type ClaudeCodeVersion
@@ -30,8 +31,6 @@ M.version = {
 M.state = {
   config = require("claudecode.config").defaults,
   server = nil,
-  port = nil,
-  auth_token = nil,
   initialized = false,
   mention_queue = {},
   mention_timer = nil,
@@ -41,27 +40,7 @@ M.state = {
 ---Check if Claude Code is connected to WebSocket server
 ---@return boolean connected Whether Claude Code has active connections
 function M.is_claude_connected()
-  if not M.state.server then
-    return false
-  end
-
-  local server_module = require("claudecode.server.init")
-  local status = server_module.get_status()
-  if not status.running then
-    return false
-  end
-
-  -- Prefer handshake-aware check when client info is available; otherwise fall back to client_count
-  if status.clients and #status.clients > 0 then
-    for _, info in ipairs(status.clients) do
-      if (info.state == "connected" or info.handshake_complete == true) and info.handshake_complete == true then
-        return true
-      end
-    end
-    return false
-  else
-    return status.client_count and status.client_count > 0
-  end
+  return codex_client.is_ready()
 end
 
 ---Clear the mention queue and stop any pending timer
@@ -164,7 +143,7 @@ function M.process_mention_queue(from_new_connection)
 
   if not M.is_claude_connected() then
     -- Still disconnected or handshake not complete yet, wait for readiness
-    logger.debug("queue", "Claude not ready (no handshake). Keeping ", #M.state.mention_queue, " mentions queued")
+    logger.debug("queue", "Codex not ready. Keeping ", #M.state.mention_queue, " mentions queued")
 
     -- If triggered by a new connection, poll until handshake completes (bounded by connection_timeout timer)
     if from_new_connection then
@@ -284,8 +263,8 @@ function M.send_at_mention(file_path, start_line, end_line, context)
   context = context or "command"
 
   if not M.state.server then
-    logger.error(context, "Claude Code integration is not running")
-    return false, "Claude Code integration is not running"
+    logger.error(context, "Codex integration is not running")
+    return false, "Codex integration is not running"
   end
 
   -- Check if Claude Code is connected
@@ -310,7 +289,7 @@ function M.send_at_mention(file_path, start_line, end_line, context)
     local terminal = require("claudecode.terminal")
     terminal.open()
 
-    logger.debug(context, "Queued @ mention and launched Claude Code: " .. file_path)
+    logger.debug(context, "Queued @ mention and launched Codex: " .. file_path)
 
     return true, nil
   end
@@ -381,7 +360,7 @@ function M.setup(opts)
         clear_mention_queue()
       end
     end,
-    desc = "Automatically stop Claude Code integration when exiting Neovim",
+    desc = "Automatically stop Codex integration when exiting Neovim",
   })
 
   M.state.initialized = true
@@ -396,78 +375,54 @@ function M.start(show_startup_notification)
   if show_startup_notification == nil then
     show_startup_notification = true
   end
+
   if M.state.server then
-    local msg = "Claude Code integration is already running on port " .. tostring(M.state.port)
-    logger.warn("init", msg)
+    logger.warn("init", "Codex integration is already running")
     return false, "Already running"
   end
 
-  local server = require("claudecode.server.init")
-  local lockfile = require("claudecode.lockfile")
-
-  -- Generate auth token first so we can pass it to the server
-  local auth_token
-  local auth_success, auth_result = pcall(function()
-    return lockfile.generate_auth_token()
-  end)
-
-  if not auth_success then
-    local error_msg = "Failed to generate authentication token: " .. (auth_result or "unknown error")
-    logger.error("init", error_msg)
-    return false, error_msg
+  local model = nil
+  if M.state.config and M.state.config.default_model then
+    model = M.state.config.default_model
+  elseif M.state.config and M.state.config.models and M.state.config.models[1] then
+    model = M.state.config.models[1].value
   end
 
-  auth_token = auth_result
+  local start_success, start_result = codex_client.start({
+    codex_cmd = M.state.config.codex_cmd,
+    model = model,
+    approval_policy = M.state.config.codex_approval_policy,
+    sandbox = M.state.config.codex_sandbox_mode,
+  })
 
-  -- Validate the generated auth token
-  if not auth_token or type(auth_token) ~= "string" or #auth_token < 10 then
-    local error_msg = "Invalid authentication token generated"
-    logger.error("init", error_msg)
-    return false, error_msg
+  if not start_success then
+    logger.error("init", "Failed to start Codex app-server: " .. (start_result or "unknown error"))
+    return false, start_result
   end
 
-  local success, result = server.start(M.state.config, auth_token)
+  local server_stub = {}
 
-  if not success then
-    local error_msg = "Failed to start Claude Code server: " .. (result or "unknown error")
-    if result and result:find("auth") then
-      error_msg = error_msg .. " (authentication related)"
+  function server_stub.broadcast(method, params)
+    if method == "at_mentioned" then
+      local path = params.filePath or params.file_path
+      return codex_client.send_at_mention(path, params.lineStart, params.lineEnd)
+    elseif method == "selection_changed" then
+      local metadata = {
+        source = params.filePath or params.file_path,
+      }
+      return codex_client.send_selection(params.text, metadata)
+    else
+      logger.debug("init", "Unsupported broadcast method", method)
+      return false
     end
-    logger.error("init", error_msg)
-    return false, error_msg
   end
 
-  M.state.server = server
-  M.state.port = tonumber(result)
-  M.state.auth_token = auth_token
-
-  local lock_success, lock_result, returned_auth_token = lockfile.create(M.state.port, auth_token)
-
-  if not lock_success then
-    server.stop()
-    M.state.server = nil
-    M.state.port = nil
-    M.state.auth_token = nil
-
-    local error_msg = "Failed to create lock file: " .. (lock_result or "unknown error")
-    if lock_result and lock_result:find("auth") then
-      error_msg = error_msg .. " (authentication token issue)"
-    end
-    logger.error("init", error_msg)
-    return false, error_msg
+  function server_stub.stop()
+    codex_client.stop()
+    return true, nil
   end
 
-  -- Verify that the auth token in the lock file matches what we generated
-  if returned_auth_token ~= auth_token then
-    server.stop()
-    M.state.server = nil
-    M.state.port = nil
-    M.state.auth_token = nil
-
-    local error_msg = "Authentication token mismatch between server and lock file"
-    logger.error("init", error_msg)
-    return false, error_msg
-  end
+  M.state.server = server_stub
 
   if M.state.config.track_selection then
     local selection = require("claudecode.selection")
@@ -475,10 +430,10 @@ function M.start(show_startup_notification)
   end
 
   if show_startup_notification then
-    logger.info("init", "Claude Code integration started on port " .. tostring(M.state.port))
+    logger.info("init", "Codex integration started")
   end
 
-  return true, M.state.port
+  return true, start_result
 end
 
 ---Stop the Claude Code integration
@@ -486,16 +441,8 @@ end
 ---@return string|nil error Error message if operation failed
 function M.stop()
   if not M.state.server then
-    logger.warn("init", "Claude Code integration is not running")
+    logger.warn("init", "Codex integration is not running")
     return false, "Not running"
-  end
-
-  local lockfile = require("claudecode.lockfile")
-  local lock_success, lock_error = lockfile.remove(M.state.port)
-
-  if not lock_success then
-    logger.warn("init", "Failed to remove lock file: " .. lock_error)
-    -- Continue with shutdown even if lock file removal fails
   end
 
   if M.state.config.track_selection then
@@ -506,18 +453,16 @@ function M.stop()
   local success, error = M.state.server.stop()
 
   if not success then
-    logger.error("init", "Failed to stop Claude Code integration: " .. error)
+    logger.error("init", "Failed to stop Codex integration: " .. error)
     return false, error
   end
 
   M.state.server = nil
-  M.state.port = nil
-  M.state.auth_token = nil
 
   -- Clear any queued @ mentions when server stops
   clear_mention_queue()
 
-  logger.info("init", "Claude Code integration stopped")
+  logger.info("init", "Codex integration stopped")
 
   return true
 end
@@ -528,23 +473,23 @@ function M._create_commands()
   vim.api.nvim_create_user_command("ClaudeCodeStart", function()
     M.start()
   end, {
-    desc = "Start Claude Code integration",
+    desc = "Start Codex integration",
   })
 
   vim.api.nvim_create_user_command("ClaudeCodeStop", function()
     M.stop()
   end, {
-    desc = "Stop Claude Code integration",
+    desc = "Stop Codex integration",
   })
 
   vim.api.nvim_create_user_command("ClaudeCodeStatus", function()
-    if M.state.server and M.state.port then
-      logger.info("command", "Claude Code integration is running on port " .. tostring(M.state.port))
+    if M.is_claude_connected() then
+      logger.info("command", "Codex integration is running")
     else
-      logger.info("command", "Claude Code integration is not running")
+      logger.info("command", "Codex integration is not running")
     end
   end, {
-    desc = "Show Claude Code integration status",
+    desc = "Show Codex integration status",
   })
 
   ---@param file_paths table List of file paths to add
@@ -568,8 +513,8 @@ function M._create_commands()
       local function send_files_sequentially(index)
         if index > total_count then
           if show_summary then
-            local message = success_count == 1 and "Added 1 file to Claude context"
-              or string.format("Added %d files to Claude context", success_count)
+            local message = success_count == 1 and "Added 1 file to Codex context"
+              or string.format("Added %d files to Codex context", success_count)
             if total_count > success_count then
               message = message .. string.format(" (%d failed)", total_count - success_count)
             end
@@ -603,8 +548,8 @@ function M._create_commands()
           end, delay)
         else
           if show_summary then
-            local message = success_count == 1 and "Added 1 file to Claude context"
-              or string.format("Added %d files to Claude context", success_count)
+            local message = success_count == 1 and "Added 1 file to Codex context"
+              or string.format("Added %d files to Codex context", success_count)
             if total_count > success_count then
               message = message .. string.format(" (%d failed)", total_count - success_count)
             end
@@ -636,8 +581,8 @@ function M._create_commands()
       end
 
       if show_summary and success_count > 0 then
-        local message = success_count == 1 and "Added 1 file to Claude context"
-          or string.format("Added %d files to Claude context", success_count)
+        local message = success_count == 1 and "Added 1 file to Codex context"
+          or string.format("Added %d files to Codex context", success_count)
         if total_count > success_count then
           message = message .. string.format(" (%d failed)", total_count - success_count)
         end
@@ -767,8 +712,8 @@ function M._create_commands()
           show_summary = false,
         })
         if success_count > 0 then
-          local message = success_count == 1 and "Added 1 file to Claude context from visual selection"
-            or string.format("Added %d files to Claude context from visual selection", success_count)
+        local message = success_count == 1 and "Added 1 file to Codex context from visual selection"
+          or string.format("Added %d files to Codex context from visual selection", success_count)
           logger.debug("command", message)
         end
         return
@@ -794,13 +739,13 @@ function M._create_commands()
   local unified_send_handler = visual_commands.create_visual_command_wrapper(handle_send_normal, handle_send_visual)
 
   vim.api.nvim_create_user_command("ClaudeCodeSend", unified_send_handler, {
-    desc = "Send current visual selection as an at_mention to Claude Code (supports tree visual selection)",
+    desc = "Send current visual selection as an at_mention to Codex (supports tree visual selection)",
     range = true,
   })
 
   local function handle_tree_add_normal()
     if not M.state.server then
-      logger.error("command", "ClaudeCodeTreeAdd: Claude Code integration is not running.")
+      logger.error("command", "ClaudeCodeTreeAdd: Codex integration is not running.")
       return
     end
 
@@ -836,18 +781,18 @@ function M._create_commands()
     if success_count == 0 then
       logger.error("command", "ClaudeCodeTreeAdd: Failed to add any files")
     elseif success_count < total_count then
-      local message = string.format("Added %d/%d files to Claude context", success_count, total_count)
+      local message = string.format("Added %d/%d files to Codex context", success_count, total_count)
       logger.debug("command", message)
     else
-      local message = success_count == 1 and "Added 1 file to Claude context"
-        or string.format("Added %d files to Claude context", success_count)
+      local message = success_count == 1 and "Added 1 file to Codex context"
+        or string.format("Added %d files to Codex context", success_count)
       logger.debug("command", message)
     end
   end
 
   local function handle_tree_add_visual(visual_data)
     if not M.state.server then
-      logger.error("command", "ClaudeCodeTreeAdd_visual: Claude Code integration is not running.")
+      logger.error("command", "ClaudeCodeTreeAdd_visual: Codex integration is not running.")
       return
     end
 
@@ -881,8 +826,8 @@ function M._create_commands()
     end
 
     if success_count > 0 then
-      local message = success_count == 1 and "Added 1 file to Claude context from visual selection"
-        or string.format("Added %d files to Claude context from visual selection", success_count)
+      local message = success_count == 1 and "Added 1 file to Codex context from visual selection"
+        or string.format("Added %d files to Codex context from visual selection", success_count)
       logger.debug("command", message)
 
       if success_count < total_count then
@@ -897,12 +842,12 @@ function M._create_commands()
     visual_commands.create_visual_command_wrapper(handle_tree_add_normal, handle_tree_add_visual)
 
   vim.api.nvim_create_user_command("ClaudeCodeTreeAdd", unified_tree_add_handler, {
-    desc = "Add selected file(s) from tree explorer to Claude Code context (supports visual selection)",
+    desc = "Add selected file(s) from tree explorer to Codex context (supports visual selection)",
   })
 
   vim.api.nvim_create_user_command("ClaudeCodeAdd", function(opts)
     if not M.state.server then
-      logger.error("command", "ClaudeCodeAdd: Claude Code integration is not running.")
+      logger.error("command", "ClaudeCodeAdd: Codex integration is not running.")
       return
     end
 
@@ -978,7 +923,7 @@ function M._create_commands()
   end, {
     nargs = "+",
     complete = "file",
-    desc = "Add specified file or directory to Claude Code context with optional line range",
+    desc = "Add specified file or directory to Codex context with optional line range",
   })
 
   local terminal_ok, terminal = pcall(require, "claudecode.terminal")
@@ -992,7 +937,7 @@ function M._create_commands()
       terminal.simple_toggle({}, cmd_args)
     end, {
       nargs = "*",
-      desc = "Toggle the Claude Code terminal window (simple show/hide) with optional arguments",
+      desc = "Toggle the Codex terminal window (simple show/hide) with optional arguments",
     })
 
     vim.api.nvim_create_user_command("ClaudeCodeFocus", function(opts)
@@ -1004,7 +949,7 @@ function M._create_commands()
       terminal.focus_toggle({}, cmd_args)
     end, {
       nargs = "*",
-      desc = "Smart focus/toggle Claude Code terminal (switches to terminal if not focused, hides if focused)",
+      desc = "Smart focus/toggle Codex terminal (switches to terminal if not focused, hides if focused)",
     })
 
     vim.api.nvim_create_user_command("ClaudeCodeOpen", function(opts)
@@ -1012,13 +957,13 @@ function M._create_commands()
       terminal.open({}, cmd_args)
     end, {
       nargs = "*",
-      desc = "Open the Claude Code terminal window with optional arguments",
+      desc = "Open the Codex terminal window with optional arguments",
     })
 
     vim.api.nvim_create_user_command("ClaudeCodeClose", function()
       terminal.close()
     end, {
-      desc = "Close the Claude Code terminal window",
+      desc = "Close the Codex terminal window",
     })
   else
     logger.error(
@@ -1047,7 +992,7 @@ function M._create_commands()
     M.open_with_model(cmd_args)
   end, {
     nargs = "*",
-    desc = "Select and open Claude terminal with chosen model and optional arguments",
+    desc = "Select and open Codex terminal with chosen model and optional arguments",
   })
 end
 
@@ -1060,7 +1005,7 @@ M.open_with_model = function(additional_args)
   end
 
   vim.ui.select(models, {
-    prompt = "Select Claude model:",
+    prompt = "Select Codex model:",
     format_item = function(item)
       return item.name
     end,
@@ -1142,7 +1087,7 @@ end
 ---Test helper functions (exposed for testing)
 function M._broadcast_at_mention(file_path, start_line, end_line)
   if not M.state.server then
-    return false, "Claude Code integration is not running"
+    return false, "Codex integration is not running"
   end
 
   -- Safely format the path and handle validation errors
@@ -1216,8 +1161,8 @@ function M._add_paths_to_claude(file_paths, options)
     local function send_batch(start_index)
       if start_index > total_count then
         if show_summary then
-          local message = success_count == 1 and "Added 1 file to Claude context"
-            or string.format("Added %d files to Claude context", success_count)
+          local message = success_count == 1 and "Added 1 file to Codex context"
+            or string.format("Added %d files to Codex context", success_count)
           if total_count > success_count then
             message = message .. string.format(" (%d failed)", total_count - success_count)
           end
@@ -1269,8 +1214,8 @@ function M._add_paths_to_claude(file_paths, options)
         end, delay)
       else
         if show_summary then
-          local message = success_count == 1 and "Added 1 file to Claude context"
-            or string.format("Added %d files to Claude context", success_count)
+          local message = success_count == 1 and "Added 1 file to Codex context"
+            or string.format("Added %d files to Codex context", success_count)
           if total_count > success_count then
             message = message .. string.format(" (%d failed)", total_count - success_count)
           end
@@ -1311,8 +1256,8 @@ function M._add_paths_to_claude(file_paths, options)
     end
 
     if show_summary then
-      local message = success_count == 1 and "Added 1 file to Claude context"
-        or string.format("Added %d files to Claude context", success_count)
+      local message = success_count == 1 and "Added 1 file to Codex context"
+        or string.format("Added %d files to Codex context", success_count)
       if total_count > success_count then
         message = message .. string.format(" (%d failed)", total_count - success_count)
       end

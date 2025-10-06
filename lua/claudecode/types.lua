@@ -118,22 +118,22 @@
 ---@field disable_broadcast_debouncing? boolean
 ---@field enable_broadcast_debouncing_in_tests? boolean
 ---@field terminal ClaudeCodeTerminalConfig?
+---@field codex_cmd string|nil
+---@field codex_approval_policy string|nil
+---@field codex_sandbox_mode string|nil
+---@field default_model string|nil
 
 ---@class (partial) PartialClaudeCodeConfig: ClaudeCodeConfig
 
 -- Server interface for main module
 ---@class ClaudeCodeServerFacade
----@field start fun(config: ClaudeCodeConfig, auth_token: string|nil): (success: boolean, port_or_error: number|string)
 ---@field stop fun(): (success: boolean, error_message: string?)
 ---@field broadcast fun(method: string, params: table?): boolean
----@field get_status fun(): ClaudeCodeServerStatus
 
 -- Main module state
 ---@class ClaudeCodeState
 ---@field config ClaudeCodeConfig
 ---@field server ClaudeCodeServerFacade|nil
----@field port integer|nil
----@field auth_token string|nil
 ---@field initialized boolean
 ---@field mention_queue ClaudeCodeMention[]
 ---@field mention_timer uv.uv_timer_t?  -- (compatible with vim.loop timer)

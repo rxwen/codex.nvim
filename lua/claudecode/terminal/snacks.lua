@@ -46,10 +46,30 @@ end
 ---@param env_table table Environment variables to set for the terminal process
 ---@param focus boolean|nil Whether to focus the terminal when opened (defaults to true)
 ---@return snacks.terminal.Opts opts Snacks terminal options with start_insert/auto_insert controlled by focus parameter
+local function normalize_env(env_table)
+  if not env_table or next(env_table) == nil then
+    return nil
+  end
+
+  local env_list = {}
+  for key, value in pairs(env_table) do
+    if type(key) == "string" and type(value) == "string" then
+      table.insert(env_list, string.format("%s=%s", key, value))
+    end
+  end
+
+  if #env_list == 0 then
+    return nil
+  end
+
+  table.sort(env_list)
+  return env_list
+end
+
 local function build_opts(config, env_table, focus)
   focus = utils.normalize_focus(focus)
   return {
-    env = env_table,
+    env = normalize_env(env_table),
     cwd = config.cwd,
     start_insert = focus,
     auto_insert = focus,

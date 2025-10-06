@@ -1,24 +1,27 @@
-# claudecode.nvim
+# codex.nvim
+
+> **Project intention:** This fork preserves the polished Neovim experience delivered by the original `[claudecode.nvim](https://github.com/coder/claudecode.nvim)` while substituting OpenAI Codex as the underlying assistant. The goal is to maintain the mature workflow (commands, keymaps, diff tooling) users rely on, merely rerouting the backend from Anthropic's Claude Code to Codex.
 
 [![Tests](https://github.com/coder/claudecode.nvim/actions/workflows/test.yml/badge.svg)](https://github.com/coder/claudecode.nvim/actions/workflows/test.yml)
 ![Neovim version](https://img.shields.io/badge/Neovim-0.8%2B-green)
 ![Status](https://img.shields.io/badge/Status-beta-blue)
 
-**The first Neovim IDE integration for Claude Code** — bringing Anthropic's AI coding assistant to your favorite editor with a pure Lua implementation.
+**Bring OpenAI Codex to Neovim** — launch the Codex CLI from inside your editor with a pure Lua implementation.
 
-> 🎯 **TL;DR:** When Anthropic released Claude Code with VS Code and JetBrains support, I reverse-engineered their extension and built this Neovim plugin. This plugin implements the same WebSocket-based MCP protocol, giving Neovim users the same AI-powered coding experience.
+> 🎯 **TL;DR:** Codex ships with an `app-server` JSON-RPC interface. This plugin now boots that process for you, keeps the existing `ClaudeCode*` commands/keymaps, and streams your selections/files straight to Codex.
+
+> **Heads-up:** The legacy command names remain (`ClaudeCode*`). Runtime behaviour now targets Codex, and some documentation below still references Claude until it is fully rewritten.
 
 <https://github.com/user-attachments/assets/9c310fb5-5a23-482b-bedc-e21ae457a82d>
 
 ## What Makes This Special
 
-When Anthropic released Claude Code, they only supported VS Code and JetBrains. As a Neovim user, I wanted the same experience — so I reverse-engineered their extension and built this.
+OpenAI's Codex CLI focuses on VS Code-style integrations. As a Neovim user, I wanted the same experience — so this plugin spins up the Codex app-server, translates your selections/mentions, and routes the responses back into Neovim.
 
 - 🚀 **Pure Lua, Zero Dependencies** — Built entirely with `vim.loop` and Neovim built-ins
-- 🔌 **100% Protocol Compatible** — Same WebSocket MCP implementation as official extensions
+- 🔌 **Calls Codex Directly** — Launches `codex app-server` and speaks its JSON-RPC protocol
 - 🎓 **Fully Documented Protocol** — Learn how to build your own integrations ([see PROTOCOL.md](./PROTOCOL.md))
-- ⚡ **First to Market** — Beat Anthropic to releasing Neovim support
-- 🛠️ **Built with AI** — Used Claude to reverse-engineer Claude's own protocol
+- 🛠️ **Built with AI** — The original reverse-engineering work came from the Claude Code project; the bridge now points at Codex
 
 ## Installation
 
@@ -28,14 +31,14 @@ When Anthropic released Claude Code, they only supported VS Code and JetBrains. 
   dependencies = { "folke/snacks.nvim" },
   config = true,
   keys = {
-    { "<leader>a", nil, desc = "AI/Claude Code" },
-    { "<leader>ac", "<cmd>ClaudeCode<cr>", desc = "Toggle Claude" },
-    { "<leader>af", "<cmd>ClaudeCodeFocus<cr>", desc = "Focus Claude" },
-    { "<leader>ar", "<cmd>ClaudeCode --resume<cr>", desc = "Resume Claude" },
-    { "<leader>aC", "<cmd>ClaudeCode --continue<cr>", desc = "Continue Claude" },
-    { "<leader>am", "<cmd>ClaudeCodeSelectModel<cr>", desc = "Select Claude model" },
+    { "<leader>a", nil, desc = "AI/Codex" },
+    { "<leader>ac", "<cmd>ClaudeCode<cr>", desc = "Toggle Codex" },
+    { "<leader>af", "<cmd>ClaudeCodeFocus<cr>", desc = "Focus Codex" },
+    { "<leader>ar", "<cmd>ClaudeCode --resume<cr>", desc = "Resume Codex" },
+    { "<leader>aC", "<cmd>ClaudeCode --continue<cr>", desc = "Continue Codex" },
+    { "<leader>am", "<cmd>ClaudeCodeSelectModel<cr>", desc = "Select Codex model" },
     { "<leader>ab", "<cmd>ClaudeCodeAdd %<cr>", desc = "Add current buffer" },
-    { "<leader>as", "<cmd>ClaudeCodeSend<cr>", mode = "v", desc = "Send to Claude" },
+    { "<leader>as", "<cmd>ClaudeCodeSend<cr>", mode = "v", desc = "Send to Codex" },
     {
       "<leader>as",
       "<cmd>ClaudeCodeTreeAdd<cr>",
@@ -54,136 +57,34 @@ That's it! The plugin will auto-configure everything else.
 ## Requirements
 
 - Neovim >= 0.8.0
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed
-- [folke/snacks.nvim](https://github.com/folke/snacks.nvim) for enhanced terminal support
+- [Codex CLI](https://github.com/openai/codex) (`npm install -g @openai/codex` or build from source)
+- [folke/snacks.nvim](https://github.com/folke/snacks.nvim) for enhanced terminal support (optional)
 
-## Local Installation Configuration
+### Customising the Codex binary
 
-If you've used Claude Code's `migrate-installer` command to move to a local installation, you'll need to configure the plugin to use the local path.
-
-### What is a Local Installation?
-
-Claude Code offers a `claude migrate-installer` command that:
-
-- Moves Claude Code from a global npm installation to `~/.claude/local/`
-- Avoids permission issues with system directories
-- Creates shell aliases but these may not be available to Neovim
-
-### Detecting Your Installation Type
-
-Check your installation type:
-
-```bash
-# Check where claude command points
-which claude
-
-# Global installation shows: /usr/local/bin/claude (or similar)
-# Local installation shows: alias to ~/.claude/local/claude
-
-# Verify installation health
-claude doctor
-```
-
-### Configuring for Local Installation
-
-If you have a local installation, configure the plugin with the direct path:
-
-```lua
-{
-  "coder/claudecode.nvim",
-  dependencies = { "folke/snacks.nvim" },
-  opts = {
-    terminal_cmd = "~/.claude/local/claude", -- Point to local installation
-  },
-  config = true,
-  keys = {
-    -- Your keymaps here
-  },
-}
-```
-
-<details>
-<summary>Native Binary Installation (Alpha)</summary>
-
-Claude Code also offers an experimental native binary installation method currently in alpha testing. This provides a single executable with no Node.js dependencies.
-
-#### Installation Methods
-
-Install the native binary using one of these methods:
-
-```bash
-# Fresh install (recommended)
-curl -fsSL claude.ai/install.sh | bash
-
-# From existing Claude Code installation
-claude install
-```
-
-#### Platform Support
-
-- **macOS**: Full support for Intel and Apple Silicon
-- **Linux**: x64 and arm64 architectures
-- **Windows**: Via WSL (Windows Subsystem for Linux)
-
-#### Benefits
-
-- **Zero Dependencies**: Single executable file with no external requirements
-- **Cross-Platform**: Consistent experience across operating systems
-- **Secure Installation**: Includes checksum verification and automatic cleanup
-
-#### Configuring for Native Binary
-
-The exact binary path depends on your shell integration. To find your installation:
-
-```bash
-# Check where claude command points
-which claude
-
-# Verify installation type and health
-claude doctor
-```
-
-Configure the plugin with the detected path:
-
-```lua
-{
-  "coder/claudecode.nvim",
-  dependencies = { "folke/snacks.nvim" },
-  opts = {
-    terminal_cmd = "/path/to/your/claude", -- Use output from 'which claude'
-  },
-  config = true,
-  keys = {
-    -- Your keymaps here
-  },
-}
-```
-
-</details>
-
-> **Note**: If Claude Code was installed globally via npm, you can use the default configuration without specifying `terminal_cmd`.
+By default the plugin executes `codex app-server`. If you installed the CLI somewhere else, set `opts.codex_cmd = "/path/to/codex"` (or pass the argument directly to `require("claudecode").setup`).
 
 ## Quick Demo
 
 ```vim
-" Launch Claude Code in a split
+" Launch Codex in a split
 :ClaudeCode
 
-" Claude now sees your current file and selections in real-time!
+" Codex now sees your current file and selections in real-time!
 
 " Send visual selection as context
 :'<,'>ClaudeCodeSend
 
-" Claude can open files, show diffs, and more
+" Codex can open files, show diffs, and more
 ```
 
 ## Usage
 
-1. **Launch Claude**: Run `:ClaudeCode` to open Claude in a split terminal
+1. **Launch Codex**: Run `:ClaudeCode` to open Codex in a split terminal
 2. **Send context**:
-   - Select text in visual mode and use `<leader>as` to send it to Claude
-   - In `nvim-tree`/`neo-tree`/`oil.nvim`/`mini.nvim`, press `<leader>as` on a file to add it to Claude's context
-3. **Let Claude work**: Claude can now:
+   - Select text in visual mode and use `<leader>as` to send it to Codex
+   - In `nvim-tree`/`neo-tree`/`oil.nvim`/`mini.nvim`, press `<leader>as` on a file to add it to Codex's context
+3. **Let Codex work**: Codex can now:
    - See your current file and selections in real-time
    - Open files in your editor
    - Show diffs with proposed changes
@@ -191,11 +92,11 @@ Configure the plugin with the detected path:
 
 ## Key Commands
 
-- `:ClaudeCode` - Toggle the Claude Code terminal window
-- `:ClaudeCodeFocus` - Smart focus/toggle Claude terminal
-- `:ClaudeCodeSelectModel` - Select Claude model and open terminal with optional arguments
-- `:ClaudeCodeSend` - Send current visual selection to Claude
-- `:ClaudeCodeAdd <file-path> [start-line] [end-line]` - Add specific file to Claude context with optional line range
+- `:ClaudeCode` - Toggle the Codex terminal window
+- `:ClaudeCodeFocus` - Smart focus/toggle Codex terminal
+- `:ClaudeCodeSelectModel` - Select Codex model and open terminal with optional arguments
+- `:ClaudeCodeSend` - Send current visual selection to Codex
+- `:ClaudeCodeAdd <file-path> [start-line] [end-line]` - Add specific file to Codex context with optional line range
 - `:ClaudeCodeDiffAccept` - Accept diff changes
 - `:ClaudeCodeDiffDeny` - Reject diff changes
 

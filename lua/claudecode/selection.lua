@@ -569,7 +569,7 @@ function M.send_current_selection()
 
   M.send_selection_update(selection)
 
-  vim.api.nvim_echo({ { "Selection sent to Claude", "Normal" } }, false, {})
+  vim.api.nvim_echo({ { "Selection sent to Codex", "Normal" } }, false, {})
 end
 
 ---Gets selection from range marks (e.g., when using :'<,'> commands)

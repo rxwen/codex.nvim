@@ -7,8 +7,8 @@ describe("Diff Module", function()
   local original_vim_functions = {}
 
   local function setup()
-    package.loaded["claudecode.diff"] = nil
-    package.loaded["claudecode.config"] = nil
+    package.loaded["codex.diff"] = nil
+    package.loaded["codex.config"] = nil
 
     assert(_G.vim, "Global vim mock not initialized by busted_setup.lua")
     assert(_G.vim.fn, "Global vim.fn mock not initialized")
@@ -16,7 +16,7 @@ describe("Diff Module", function()
     -- For this spec, the global mock (which now includes stdpath) should be largely sufficient.
     -- The local mock_vim that was missing stdpath is removed.
 
-    diff = require("claudecode.diff")
+    diff = require("codex.diff")
   end
 
   local function teardown()
@@ -94,7 +94,7 @@ describe("Diff Module", function()
       expect(result).to_be_table()
       expect(result.success).to_be_true()
       expect(result.temp_file).to_be_string()
-      expect(result.temp_file:find("claudecode_diff", 1, true)).not_to_be_nil()
+      expect(result.temp_file:find("codex_diff", 1, true)).not_to_be_nil()
       local expected_suffix = vim.fn.fnamemodify(new_file_path, ":t") .. ".new"
       expect(result.temp_file:find(expected_suffix, 1, true)).not_to_be_nil()
 

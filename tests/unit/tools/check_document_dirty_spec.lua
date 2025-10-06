@@ -4,8 +4,8 @@ describe("Tool: check_document_dirty", function()
   local check_document_dirty_handler
 
   before_each(function()
-    package.loaded["claudecode.tools.check_document_dirty"] = nil
-    check_document_dirty_handler = require("claudecode.tools.check_document_dirty").handler
+    package.loaded["codex.tools.check_document_dirty"] = nil
+    check_document_dirty_handler = require("codex.tools.check_document_dirty").handler
 
     _G.vim = _G.vim or {}
     _G.vim.fn = _G.vim.fn or {}
@@ -50,7 +50,7 @@ describe("Tool: check_document_dirty", function()
   end)
 
   after_each(function()
-    package.loaded["claudecode.tools.check_document_dirty"] = nil
+    package.loaded["codex.tools.check_document_dirty"] = nil
     _G.vim.fn.bufnr = nil
     _G.vim.api.nvim_buf_get_option = nil
     _G.vim.api.nvim_buf_get_name = nil

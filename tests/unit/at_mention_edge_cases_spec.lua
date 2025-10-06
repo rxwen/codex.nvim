@@ -6,12 +6,12 @@ describe("At Mention Edge Cases", function()
   local mock_vim
 
   local function setup_mocks()
-    package.loaded["claudecode.init"] = nil
-    package.loaded["claudecode.logger"] = nil
-    package.loaded["claudecode.config"] = nil
+    package.loaded["codex.init"] = nil
+    package.loaded["codex.logger"] = nil
+    package.loaded["codex.config"] = nil
 
     -- Mock logger
-    package.loaded["claudecode.logger"] = {
+    package.loaded["codex.logger"] = {
       debug = function() end,
       warn = function(component, ...)
         local args = { ... }
@@ -26,7 +26,7 @@ describe("At Mention Edge Cases", function()
     }
 
     -- Mock config
-    package.loaded["claudecode.config"] = {
+    package.loaded["codex.config"] = {
       get = function()
         return {
           debounce_ms = 100,
@@ -83,7 +83,7 @@ describe("At Mention Edge Cases", function()
 
   before_each(function()
     setup_mocks()
-    init_module = require("claudecode.init")
+    init_module = require("codex.init")
   end)
 
   describe("format_path_for_at_mention validation", function()

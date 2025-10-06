@@ -211,9 +211,9 @@ describe("Server module", function()
 
   setup(function()
     -- Reset the module
-    package.loaded["claudecode.server.init"] = nil -- Also update package.loaded key
+    package.loaded["codex.server.init"] = nil -- Also update package.loaded key
 
-    server = require("claudecode.server.init")
+    server = require("codex.server.init")
   end)
 
   teardown(function()

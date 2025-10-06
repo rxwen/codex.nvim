@@ -12,11 +12,11 @@ describe("Tool: get_current_selection", function()
         return nil
       end),
     }
-    package.loaded["claudecode.selection"] = mock_selection_module
+    package.loaded["codex.selection"] = mock_selection_module
 
     -- Reset and require the module under test
-    package.loaded["claudecode.tools.get_current_selection"] = nil
-    get_current_selection_handler = require("claudecode.tools.get_current_selection").handler
+    package.loaded["codex.tools.get_current_selection"] = nil
+    get_current_selection_handler = require("codex.tools.get_current_selection").handler
 
     -- Mock vim.api and vim.json functions that might be called by the fallback if no selection
     _G.vim = _G.vim or {}
@@ -37,8 +37,8 @@ describe("Tool: get_current_selection", function()
   end)
 
   after_each(function()
-    package.loaded["claudecode.selection"] = nil
-    package.loaded["claudecode.tools.get_current_selection"] = nil
+    package.loaded["codex.selection"] = nil
+    package.loaded["codex.tools.get_current_selection"] = nil
     _G.vim.api.nvim_get_current_buf = nil
     _G.vim.api.nvim_buf_get_name = nil
     _G.vim.json.encode = nil
@@ -66,7 +66,7 @@ describe("Tool: get_current_selection", function()
     assert.spy(mock_selection_module.get_latest_selection).was_called()
   end)
 
-  it("should return the selection data from claudecode.selection if available", function()
+  it("should return the selection data from codex.selection if available", function()
     local mock_sel_data = {
       text = "selected text",
       filePath = "/path/to/file.lua",
@@ -123,11 +123,11 @@ describe("Tool: get_current_selection", function()
 
   it("should handle pcall failure when requiring selection module", function()
     -- Simulate require failing
-    package.loaded["claudecode.selection"] = nil -- Ensure it's not cached
+    package.loaded["codex.selection"] = nil -- Ensure it's not cached
     local original_require = _G.require
     _G.require = function(mod_name)
-      if mod_name == "claudecode.selection" then
-        error("Simulated require failure for claudecode.selection")
+      if mod_name == "codex.selection" then
+        error("Simulated require failure for codex.selection")
       end
       return original_require(mod_name)
     end

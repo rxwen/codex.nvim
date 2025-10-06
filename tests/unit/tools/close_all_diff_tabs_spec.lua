@@ -4,8 +4,8 @@ describe("Tool: close_all_diff_tabs", function()
   local close_all_diff_tabs_handler
 
   before_each(function()
-    package.loaded["claudecode.tools.close_all_diff_tabs"] = nil
-    close_all_diff_tabs_handler = require("claudecode.tools.close_all_diff_tabs").handler
+    package.loaded["codex.tools.close_all_diff_tabs"] = nil
+    close_all_diff_tabs_handler = require("codex.tools.close_all_diff_tabs").handler
 
     _G.vim = _G.vim or {}
     _G.vim.api = _G.vim.api or {}
@@ -48,7 +48,7 @@ describe("Tool: close_all_diff_tabs", function()
   end)
 
   after_each(function()
-    package.loaded["claudecode.tools.close_all_diff_tabs"] = nil
+    package.loaded["codex.tools.close_all_diff_tabs"] = nil
     -- Clear all mocks
     _G.vim.api.nvim_list_wins = nil
     _G.vim.api.nvim_win_get_buf = nil

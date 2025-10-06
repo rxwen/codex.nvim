@@ -4,11 +4,11 @@ describe("WebSocket handshake authentication", function()
   local handshake
 
   before_each(function()
-    handshake = require("claudecode.server.handshake")
+    handshake = require("codex.server.handshake")
   end)
 
   after_each(function()
-    package.loaded["claudecode.server.handshake"] = nil
+    package.loaded["codex.server.handshake"] = nil
   end)
 
   describe("validate_upgrade_request with authentication", function()
@@ -113,7 +113,7 @@ describe("WebSocket handshake authentication", function()
         "Connection: upgrade",
         "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==",
         "Sec-WebSocket-Version: 13",
-        "X-Claude-Code-IDE-Authorization: " .. expected_token,
+        "X-Codex-Code-IDE-Authorization: " .. expected_token,
         "",
         "",
       }, "\r\n")

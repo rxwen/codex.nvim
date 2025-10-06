@@ -1,9 +1,9 @@
 require("tests.busted_setup")
 require("tests.mocks.vim")
 
-describe("ClaudeCodeSend visual selection in tree buffers", function()
+describe("CodexSend visual selection in tree buffers", function()
   local original_require
-  local claudecode
+  local codex
   local command_callback
 
   local mock_server
@@ -13,14 +13,14 @@ describe("ClaudeCodeSend visual selection in tree buffers", function()
 
   before_each(function()
     -- Reset package cache
-    package.loaded["claudecode"] = nil
-    package.loaded["claudecode.visual_commands"] = nil
-    package.loaded["claudecode.integrations"] = nil
-    package.loaded["claudecode.server.init"] = nil
-    package.loaded["claudecode.lockfile"] = nil
-    package.loaded["claudecode.config"] = nil
-    package.loaded["claudecode.logger"] = nil
-    package.loaded["claudecode.diff"] = nil
+    package.loaded["codex"] = nil
+    package.loaded["codex.visual_commands"] = nil
+    package.loaded["codex.integrations"] = nil
+    package.loaded["codex.server.init"] = nil
+    package.loaded["codex.lockfile"] = nil
+    package.loaded["codex.config"] = nil
+    package.loaded["codex.logger"] = nil
+    package.loaded["codex.diff"] = nil
 
     -- Mocks
     mock_server = {
@@ -78,7 +78,7 @@ describe("ClaudeCodeSend visual selection in tree buffers", function()
 
     -- Mock vim API and environment
     _G.vim.api.nvim_create_user_command = spy.new(function(name, callback, opts)
-      if name == "ClaudeCodeSend" then
+      if name == "CodexSend" then
         command_callback = callback
       end
     end)
@@ -104,19 +104,19 @@ describe("ClaudeCodeSend visual selection in tree buffers", function()
     -- Mock require
     original_require = _G.require
     _G.require = function(module)
-      if module == "claudecode.logger" then
+      if module == "codex.logger" then
         return mock_logger
-      elseif module == "claudecode.visual_commands" then
+      elseif module == "codex.visual_commands" then
         return mock_visual_commands
-      elseif module == "claudecode.integrations" then
+      elseif module == "codex.integrations" then
         return mock_integrations
-      elseif module == "claudecode.server.init" then
+      elseif module == "codex.server.init" then
         return {
           get_status = function()
             return { running = true, client_count = 1 }
           end,
         }
-      elseif module == "claudecode.lockfile" then
+      elseif module == "codex.lockfile" then
         return {
           create = function()
             return true, "/tmp/mock.lock", "auth"
@@ -128,15 +128,15 @@ describe("ClaudeCodeSend visual selection in tree buffers", function()
             return "auth"
           end,
         }
-      elseif module == "claudecode.config" then
+      elseif module == "codex.config" then
         return {
           apply = function(opts)
             return opts or { log_level = "info" }
           end,
         }
-      elseif module == "claudecode.diff" then
+      elseif module == "codex.diff" then
         return { setup = function() end }
-      elseif module == "claudecode.terminal" then
+      elseif module == "codex.terminal" then
         return {
           setup = function() end,
           open = function() end,
@@ -148,15 +148,15 @@ describe("ClaudeCodeSend visual selection in tree buffers", function()
     end
 
     -- Load plugin and setup
-    claudecode = require("claudecode")
-    claudecode.setup({ auto_start = false })
-    claudecode.state.server = mock_server
-    claudecode.state.port = 12345
+    codex = require("codex")
+    codex.setup({ auto_start = false })
+    codex.state.server = mock_server
+    codex.state.port = 12345
     -- Ensure immediate broadcast path in tests
-    claudecode.state.config.disable_broadcast_debouncing = true
+    codex.state.config.disable_broadcast_debouncing = true
 
     -- Spy on send_at_mention to count file sends without relying on broadcast internals
-    claudecode.send_at_mention = spy.new(function()
+    codex.send_at_mention = spy.new(function()
       return true
     end)
   end)
@@ -176,8 +176,8 @@ describe("ClaudeCodeSend visual selection in tree buffers", function()
     assert.spy(mock_integrations.get_selected_files_from_tree).was_not_called()
 
     -- 3 files should be sent via send_at_mention
-    assert.spy(claudecode.send_at_mention).was_called()
-    local call_count = #claudecode.send_at_mention.calls
+    assert.spy(codex.send_at_mention).was_called()
+    local call_count = #codex.send_at_mention.calls
     assert.is_true(call_count == 3, "Expected 3 sends, got " .. tostring(call_count))
   end)
 end)

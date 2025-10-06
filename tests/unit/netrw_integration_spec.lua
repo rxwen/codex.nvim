@@ -6,11 +6,11 @@ describe("netrw integration", function()
   local mock_vim
 
   local function setup_mocks()
-    package.loaded["claudecode.integrations"] = nil
-    package.loaded["claudecode.logger"] = nil
+    package.loaded["codex.integrations"] = nil
+    package.loaded["codex.logger"] = nil
 
     -- Mock logger
-    package.loaded["claudecode.logger"] = {
+    package.loaded["codex.logger"] = {
       debug = function() end,
       warn = function() end,
       error = function() end,
@@ -77,7 +77,7 @@ describe("netrw integration", function()
 
   before_each(function()
     setup_mocks()
-    integrations = require("claudecode.integrations")
+    integrations = require("codex.integrations")
   end)
 
   describe("_get_netrw_selection", function()

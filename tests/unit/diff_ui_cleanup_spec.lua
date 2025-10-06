@@ -1,6 +1,6 @@
 require("tests.busted_setup")
 
-local diff = require("claudecode.diff")
+local diff = require("codex.diff")
 
 describe("Diff UI cleanup behavior", function()
   local test_old_file = "/tmp/test_ui_cleanup_old.txt"
@@ -65,10 +65,10 @@ describe("Diff UI cleanup behavior", function()
     )
   end)
 
-  it("keeps Claude terminal visible in original tab on reject when previously visible", function()
+  it("keeps Codex terminal visible in original tab on reject when previously visible", function()
     -- Spy on terminal.ensure_visible by preloading a stub module
     local ensure_calls = 0
-    package.loaded["claudecode.terminal"] = {
+    package.loaded["codex.terminal"] = {
       ensure_visible = function()
         ensure_calls = ensure_calls + 1
         return true
@@ -114,6 +114,6 @@ describe("Diff UI cleanup behavior", function()
     assert.equals(1, ensure_calls)
 
     -- Clear the stub to avoid side effects for other tests
-    package.loaded["claudecode.terminal"] = nil
+    package.loaded["codex.terminal"] = nil
   end)
 end)

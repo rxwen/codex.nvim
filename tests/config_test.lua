@@ -160,9 +160,9 @@ describe("Config module", function()
 
   setup(function()
     -- Reset the module to ensure a clean state for each test
-    package.loaded["claudecode.config"] = nil
+    package.loaded["codex.config"] = nil
 
-    config = require("claudecode.config")
+    config = require("codex.config")
   end)
 
   it("should have default values", function()
@@ -181,8 +181,8 @@ describe("Config module", function()
       log_level = "debug",
       track_selection = false,
       models = {
-        { name = "Claude Opus 4 (Latest)", value = "claude-opus-4-20250514" },
-        { name = "Claude Sonnet 4 (Latest)", value = "claude-sonnet-4-20250514" },
+        { name = "Codex Opus 4 (Latest)", value = "claude-opus-4-20250514" },
+        { name = "Codex Sonnet 4 (Latest)", value = "claude-sonnet-4-20250514" },
       },
     }
 

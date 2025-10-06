@@ -6,11 +6,11 @@ describe("NvimTree Visual Selection", function()
   local mock_vim
 
   local function setup_mocks()
-    package.loaded["claudecode.visual_commands"] = nil
-    package.loaded["claudecode.logger"] = nil
+    package.loaded["codex.visual_commands"] = nil
+    package.loaded["codex.logger"] = nil
 
     -- Mock logger
-    package.loaded["claudecode.logger"] = {
+    package.loaded["codex.logger"] = {
       debug = function() end,
       warn = function() end,
       error = function() end,
@@ -75,7 +75,7 @@ describe("NvimTree Visual Selection", function()
 
   describe("nvim-tree visual selection handling", function()
     before_each(function()
-      visual_commands = require("claudecode.visual_commands")
+      visual_commands = require("codex.visual_commands")
     end)
 
     it("should extract files from visual selection in nvim-tree", function()

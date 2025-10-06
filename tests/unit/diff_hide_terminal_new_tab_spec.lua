@@ -1,11 +1,11 @@
 require("tests.busted_setup")
 
 describe("Diff new-tab with hidden terminal", function()
-  local open_diff_tool = require("claudecode.tools.open_diff")
-  local diff = require("claudecode.diff")
+  local open_diff_tool = require("codex.tools.open_diff")
+  local diff = require("codex.diff")
 
-  local test_old_file = "/tmp/claudecode_diff_hide_old.txt"
-  local test_new_file = "/tmp/claudecode_diff_hide_new.txt"
+  local test_old_file = "/tmp/codex_diff_hide_old.txt"
+  local test_new_file = "/tmp/codex_diff_hide_new.txt"
   local test_tab_name = "hide-term-in-new-tab"
 
   before_each(function()
@@ -30,7 +30,7 @@ describe("Diff new-tab with hidden terminal", function()
 
     -- Stub terminal provider with a valid terminal buffer (should be ignored due to hide flag)
     local term_buf = vim.api.nvim_create_buf(false, true)
-    package.loaded["claudecode.terminal"] = {
+    package.loaded["codex.terminal"] = {
       get_active_terminal_bufnr = function()
         return term_buf
       end,
@@ -42,7 +42,7 @@ describe("Diff new-tab with hidden terminal", function()
     os.remove(test_old_file)
     os.remove(test_new_file)
     -- Clear stub to avoid side effects
-    package.loaded["claudecode.terminal"] = nil
+    package.loaded["codex.terminal"] = nil
     diff._cleanup_all_active_diffs("test_teardown")
   end)
 

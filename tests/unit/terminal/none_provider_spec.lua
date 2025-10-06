@@ -30,22 +30,22 @@ describe("none terminal provider", function()
     end
 
     -- Minimal logger + server mocks
-    package.loaded["claudecode.logger"] = {
+    package.loaded["codex.logger"] = {
       debug = function() end,
       warn = function() end,
       error = function() end,
       info = function() end,
       setup = function() end,
     }
-    package.loaded["claudecode.server.init"] = { state = { port = 12345 } }
+    package.loaded["codex.server.init"] = { state = { port = 12345 } }
 
     -- Ensure fresh terminal module load
-    package.loaded["claudecode.terminal"] = nil
-    package.loaded["claudecode.terminal.none"] = nil
-    package.loaded["claudecode.terminal.native"] = nil
-    package.loaded["claudecode.terminal.snacks"] = nil
+    package.loaded["codex.terminal"] = nil
+    package.loaded["codex.terminal.none"] = nil
+    package.loaded["codex.terminal.native"] = nil
+    package.loaded["codex.terminal.snacks"] = nil
 
-    terminal = require("claudecode.terminal")
+    terminal = require("codex.terminal")
     terminal.setup({ provider = "none" }, nil, {})
   end)
 

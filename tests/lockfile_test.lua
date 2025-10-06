@@ -253,8 +253,8 @@ describe("Lockfile Module", function()
     os.execute("mkdir -p '" .. test_dir .. "'")
 
     -- Load the lockfile module for all tests
-    package.loaded["claudecode.lockfile"] = nil -- Clear any previous requires
-    lockfile = require("claudecode.lockfile")
+    package.loaded["codex.lockfile"] = nil -- Clear any previous requires
+    lockfile = require("codex.lockfile")
   end)
 
   teardown(function()

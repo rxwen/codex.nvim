@@ -1,7 +1,7 @@
 require("tests.busted_setup")
 require("tests.mocks.vim")
 
-describe("claudecode.init", function()
+describe("codex.init", function()
   ---@class AutocmdOptions
   ---@field group string|number|nil
   ---@field pattern string|string[]|nil
@@ -205,11 +205,11 @@ describe("claudecode.init", function()
     mock_lockfile.remove = SpyObject.new(mock_lockfile.remove)
 
     _G.require = function(mod)
-      if mod == "claudecode.server.init" then
+      if mod == "codex.server.init" then
         return mock_server
-      elseif mod == "claudecode.lockfile" then
+      elseif mod == "codex.lockfile" then
         return mock_lockfile
-      elseif mod == "claudecode.selection" then
+      elseif mod == "codex.selection" then
         return mock_selection
       else
         return saved_require(mod)
@@ -231,8 +231,8 @@ describe("claudecode.init", function()
 
   describe("setup", function()
     it("should register VimLeavePre autocmd for auto-shutdown", function()
-      local claudecode = require("claudecode")
-      claudecode.setup()
+      local codex = require("codex")
+      codex.setup()
 
       assert(#vim.api.nvim_create_augroup.calls > 0, "nvim_create_augroup was not called")
       assert(#vim.api.nvim_create_autocmd.calls > 0, "nvim_create_autocmd was not called")
@@ -243,9 +243,9 @@ describe("claudecode.init", function()
 
   describe("auto-shutdown", function()
     it("should stop the server and remove lockfile when Neovim exits", function()
-      local claudecode = require("claudecode")
-      claudecode.setup()
-      claudecode.start()
+      local codex = require("codex")
+      codex.setup()
+      codex.start()
 
       local callback_fn = nil
       for _, call in ipairs(vim.api.nvim_create_autocmd.calls) do
@@ -257,7 +257,7 @@ describe("claudecode.init", function()
           end
         end
       end
-      assert(callback_fn, "Callback for VimLeavePre with ClaudeCodeShutdown group not found")
+      assert(callback_fn, "Callback for VimLeavePre with CodexShutdown group not found")
 
       mock_server.stop.calls = {}
       mock_lockfile.remove.calls = {}
@@ -271,8 +271,8 @@ describe("claudecode.init", function()
     end)
 
     it("should do nothing if the server is not running", function()
-      local claudecode = require("claudecode")
-      claudecode.setup({ auto_start = false })
+      local codex = require("codex")
+      codex.setup({ auto_start = false })
 
       local opts = vim.api.nvim_create_autocmd.calls[1].vals[2]
       local callback_fn = opts.callback
@@ -289,7 +289,7 @@ describe("claudecode.init", function()
     end)
   end)
 
-  describe("ClaudeCode command with arguments", function()
+  describe("Codex command with arguments", function()
     local mock_terminal
 
     before_each(function()
@@ -305,13 +305,13 @@ describe("claudecode.init", function()
 
       local original_require = _G.require
       _G.require = function(mod)
-        if mod == "claudecode.terminal" then
+        if mod == "codex.terminal" then
           return mock_terminal
-        elseif mod == "claudecode.server.init" then
+        elseif mod == "codex.server.init" then
           return mock_server
-        elseif mod == "claudecode.lockfile" then
+        elseif mod == "codex.lockfile" then
           return mock_lockfile
-        elseif mod == "claudecode.selection" then
+        elseif mod == "codex.selection" then
           return mock_selection
         else
           return original_require(mod)
@@ -319,13 +319,13 @@ describe("claudecode.init", function()
       end
     end)
 
-    it("should register ClaudeCode command with nargs='*'", function()
-      local claudecode = require("claudecode")
-      claudecode.setup({ auto_start = false })
+    it("should register Codex command with nargs='*'", function()
+      local codex = require("codex")
+      codex.setup({ auto_start = false })
 
       local command_found = false
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCode" then
+        if call.vals[1] == "Codex" then
           command_found = true
           local config = call.vals[3]
           assert.is_equal("*", config.nargs)
@@ -336,16 +336,16 @@ describe("claudecode.init", function()
           break
         end
       end
-      assert.is_true(command_found, "ClaudeCode command was not registered")
+      assert.is_true(command_found, "Codex command was not registered")
     end)
 
-    it("should register ClaudeCodeOpen command with nargs='*'", function()
-      local claudecode = require("claudecode")
-      claudecode.setup({ auto_start = false })
+    it("should register CodexOpen command with nargs='*'", function()
+      local codex = require("codex")
+      codex.setup({ auto_start = false })
 
       local command_found = false
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCodeOpen" then
+        if call.vals[1] == "CodexOpen" then
           command_found = true
           local config = call.vals[3]
           assert.is_equal("*", config.nargs)
@@ -356,17 +356,17 @@ describe("claudecode.init", function()
           break
         end
       end
-      assert.is_true(command_found, "ClaudeCodeOpen command was not registered")
+      assert.is_true(command_found, "CodexOpen command was not registered")
     end)
 
-    it("should parse and pass arguments to terminal.toggle for ClaudeCode command", function()
-      local claudecode = require("claudecode")
-      claudecode.setup({ auto_start = false })
+    it("should parse and pass arguments to terminal.toggle for Codex command", function()
+      local codex = require("codex")
+      codex.setup({ auto_start = false })
 
-      -- Find and call the ClaudeCode command handler
+      -- Find and call the Codex command handler
       local command_handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCode" then
+        if call.vals[1] == "Codex" then
           command_handler = call.vals[2]
           break
         end
@@ -382,14 +382,14 @@ describe("claudecode.init", function()
       assert.is_equal("--resume --verbose", call_args[2], "Second argument should be the command args")
     end)
 
-    it("should parse and pass arguments to terminal.open for ClaudeCodeOpen command", function()
-      local claudecode = require("claudecode")
-      claudecode.setup({ auto_start = false })
+    it("should parse and pass arguments to terminal.open for CodexOpen command", function()
+      local codex = require("codex")
+      codex.setup({ auto_start = false })
 
-      -- Find and call the ClaudeCodeOpen command handler
+      -- Find and call the CodexOpen command handler
       local command_handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCodeOpen" then
+        if call.vals[1] == "CodexOpen" then
           command_handler = call.vals[2]
           break
         end
@@ -406,12 +406,12 @@ describe("claudecode.init", function()
     end)
 
     it("should handle empty arguments gracefully", function()
-      local claudecode = require("claudecode")
-      claudecode.setup({ auto_start = false })
+      local codex = require("codex")
+      codex.setup({ auto_start = false })
 
       local command_handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCode" then
+        if call.vals[1] == "Codex" then
           command_handler = call.vals[2]
           break
         end
@@ -425,12 +425,12 @@ describe("claudecode.init", function()
     end)
 
     it("should handle nil arguments gracefully", function()
-      local claudecode = require("claudecode")
-      claudecode.setup({ auto_start = false })
+      local codex = require("codex")
+      codex.setup({ auto_start = false })
 
       local command_handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCode" then
+        if call.vals[1] == "Codex" then
           command_handler = call.vals[2]
           break
         end
@@ -444,12 +444,12 @@ describe("claudecode.init", function()
     end)
 
     it("should maintain backward compatibility when no arguments provided", function()
-      local claudecode = require("claudecode")
-      claudecode.setup({ auto_start = false })
+      local codex = require("codex")
+      codex.setup({ auto_start = false })
 
       local command_handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCode" then
+        if call.vals[1] == "Codex" then
           command_handler = call.vals[2]
           break
         end
@@ -463,7 +463,7 @@ describe("claudecode.init", function()
     end)
   end)
 
-  describe("ClaudeCodeSelectModel command with arguments", function()
+  describe("CodexSelectModel command with arguments", function()
     local mock_terminal
     local mock_ui_select
     local mock_vim_cmd
@@ -492,13 +492,13 @@ describe("claudecode.init", function()
 
       local original_require = _G.require
       _G.require = function(mod)
-        if mod == "claudecode.terminal" then
+        if mod == "codex.terminal" then
           return mock_terminal
-        elseif mod == "claudecode.server.init" then
+        elseif mod == "codex.server.init" then
           return mock_server
-        elseif mod == "claudecode.lockfile" then
+        elseif mod == "codex.lockfile" then
           return mock_lockfile
-        elseif mod == "claudecode.selection" then
+        elseif mod == "codex.selection" then
           return mock_selection
         else
           return original_require(mod)
@@ -506,13 +506,13 @@ describe("claudecode.init", function()
       end
     end)
 
-    it("should register ClaudeCodeSelectModel command with correct configuration", function()
-      local claudecode = require("claudecode")
-      claudecode.setup({ auto_start = false })
+    it("should register CodexSelectModel command with correct configuration", function()
+      local codex = require("codex")
+      codex.setup({ auto_start = false })
 
       local command_found = false
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCodeSelectModel" then
+        if call.vals[1] == "CodexSelectModel" then
           command_found = true
           local config = call.vals[3]
           assert.is_equal("*", config.nargs)
@@ -523,17 +523,17 @@ describe("claudecode.init", function()
           break
         end
       end
-      assert.is_true(command_found, "ClaudeCodeSelectModel command was not registered")
+      assert.is_true(command_found, "CodexSelectModel command was not registered")
     end)
 
-    it("should call ClaudeCode command with model arg when no additional args provided", function()
-      local claudecode = require("claudecode")
-      claudecode.setup({ auto_start = false })
+    it("should call Codex command with model arg when no additional args provided", function()
+      local codex = require("codex")
+      codex.setup({ auto_start = false })
 
-      -- Find and call the ClaudeCodeSelectModel command handler
+      -- Find and call the CodexSelectModel command handler
       local command_handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCodeSelectModel" then
+        if call.vals[1] == "CodexSelectModel" then
           command_handler = call.vals[2]
           break
         end
@@ -546,20 +546,20 @@ describe("claudecode.init", function()
       -- Verify vim.ui.select was called
       assert(#mock_ui_select.calls > 0, "vim.ui.select was not called")
 
-      -- Verify vim.cmd was called with the correct ClaudeCode command
+      -- Verify vim.cmd was called with the correct Codex command
       assert(#mock_vim_cmd.calls > 0, "vim.cmd was not called")
       local cmd_arg = mock_vim_cmd.calls[1].vals[1]
-      assert.is_equal("ClaudeCode --model opus", cmd_arg, "Should call ClaudeCode with model arg")
+      assert.is_equal("Codex --model opus", cmd_arg, "Should call Codex with model arg")
     end)
 
-    it("should call ClaudeCode command with model and additional args", function()
-      local claudecode = require("claudecode")
-      claudecode.setup({ auto_start = false })
+    it("should call Codex command with model and additional args", function()
+      local codex = require("codex")
+      codex.setup({ auto_start = false })
 
-      -- Find and call the ClaudeCodeSelectModel command handler
+      -- Find and call the CodexSelectModel command handler
       local command_handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCodeSelectModel" then
+        if call.vals[1] == "CodexSelectModel" then
           command_handler = call.vals[2]
           break
         end
@@ -572,29 +572,29 @@ describe("claudecode.init", function()
       -- Verify vim.ui.select was called
       assert(#mock_ui_select.calls > 0, "vim.ui.select was not called")
 
-      -- Verify vim.cmd was called with the correct ClaudeCode command including additional args
+      -- Verify vim.cmd was called with the correct Codex command including additional args
       assert(#mock_vim_cmd.calls > 0, "vim.cmd was not called")
       local cmd_arg = mock_vim_cmd.calls[1].vals[1]
       assert.is_equal(
-        "ClaudeCode --model opus --resume --verbose",
+        "Codex --model opus --resume --verbose",
         cmd_arg,
-        "Should call ClaudeCode with model and additional args"
+        "Should call Codex with model and additional args"
       )
     end)
 
     it("should handle user cancellation gracefully", function()
-      local claudecode = require("claudecode")
-      claudecode.setup({ auto_start = false })
+      local codex = require("codex")
+      codex.setup({ auto_start = false })
 
       -- Mock vim.ui.select to simulate user cancellation
       vim.ui.select = spy.new(function(models, opts, callback)
         callback(nil) -- User cancelled
       end)
 
-      -- Find and call the ClaudeCodeSelectModel command handler
+      -- Find and call the CodexSelectModel command handler
       local command_handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCodeSelectModel" then
+        if call.vals[1] == "CodexSelectModel" then
           command_handler = call.vals[2]
           break
         end

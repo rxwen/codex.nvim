@@ -329,9 +329,9 @@ describe("Selection module", function()
   }
 
   setup(function()
-    package.loaded["claudecode.selection"] = nil
+    package.loaded["codex.selection"] = nil
 
-    selection = require("claudecode.selection")
+    selection = require("codex.selection")
   end)
 
   teardown(function()
@@ -494,8 +494,8 @@ describe("Range Selection Tests", function()
     end
 
     -- Reload the selection module
-    package.loaded["claudecode.selection"] = nil
-    selection = require("claudecode.selection")
+    package.loaded["codex.selection"] = nil
+    selection = require("codex.selection")
   end)
 
   describe("get_range_selection", function()
@@ -566,7 +566,7 @@ describe("Range Selection Tests", function()
 
   describe("send_at_mention_for_visual_selection with range", function()
     local mock_server
-    local mock_claudecode_main
+    local mock_codex_main
     local original_require
 
     before_each(function()
@@ -580,7 +580,7 @@ describe("Range Selection Tests", function()
         end,
       }
 
-      mock_claudecode_main = {
+      mock_codex_main = {
         state = {
           server = mock_server,
         },
@@ -595,11 +595,11 @@ describe("Range Selection Tests", function()
         end,
       }
 
-      -- Mock the require function to return our mock claudecode module
+      -- Mock the require function to return our mock codex module
       original_require = _G.require
       _G.require = function(module_name)
-        if module_name == "claudecode" then
-          return mock_claudecode_main
+        if module_name == "codex" then
+          return mock_codex_main
         else
           return original_require(module_name)
         end
@@ -650,7 +650,7 @@ describe("Range Selection Tests", function()
     end)
 
     it("should fail when server is not available", function()
-      mock_claudecode_main.state.server = nil
+      mock_codex_main.state.server = nil
       local result = selection.send_at_mention_for_visual_selection(2, 4)
       assert(result == false)
     end)

@@ -1,8 +1,8 @@
 require("tests.busted_setup")
 require("tests.mocks.vim")
 
-describe("ClaudeCode command arguments integration", function()
-  local claudecode
+describe("Codex command arguments integration", function()
+  local codex
   local mock_server
   local mock_lockfile
   local mock_selection
@@ -136,13 +136,13 @@ describe("ClaudeCode command arguments integration", function()
 
     original_require = _G.require
     _G.require = function(mod)
-      if mod == "claudecode.server.init" then
+      if mod == "codex.server.init" then
         return mock_server
-      elseif mod == "claudecode.lockfile" then
+      elseif mod == "codex.lockfile" then
         return mock_lockfile
-      elseif mod == "claudecode.selection" then
+      elseif mod == "codex.selection" then
         return mock_selection
-      elseif mod == "claudecode.config" then
+      elseif mod == "codex.config" then
         return {
           apply = function(opts)
             return vim.tbl_deep_extend("force", {
@@ -160,11 +160,11 @@ describe("ClaudeCode command arguments integration", function()
             }, opts or {})
           end,
         }
-      elseif mod == "claudecode.diff" then
+      elseif mod == "codex.diff" then
         return {
           setup = function() end,
         }
-      elseif mod == "claudecode.logger" then
+      elseif mod == "codex.logger" then
         return {
           setup = function() end,
           debug = function() end,
@@ -177,57 +177,57 @@ describe("ClaudeCode command arguments integration", function()
     end
 
     -- Clear package cache to ensure fresh requires
-    package.loaded["claudecode"] = nil
-    package.loaded["claudecode.terminal"] = nil
-    package.loaded["claudecode.terminal.snacks"] = nil
-    package.loaded["claudecode.terminal.native"] = nil
-    claudecode = require("claudecode")
+    package.loaded["codex"] = nil
+    package.loaded["codex.terminal"] = nil
+    package.loaded["codex.terminal.snacks"] = nil
+    package.loaded["codex.terminal.native"] = nil
+    codex = require("codex")
   end)
 
   after_each(function()
     -- CRITICAL: Add explicit cleanup to prevent hanging
-    if claudecode and claudecode.state and claudecode.state.server then
+    if codex and codex.state and codex.state.server then
       -- Clean up global deferred responses that prevent garbage collection
       if _G.claude_deferred_responses then
         _G.claude_deferred_responses = {}
       end
 
       -- Stop the server and selection tracking explicitly
-      local selection_ok, selection = pcall(require, "claudecode.selection")
+      local selection_ok, selection = pcall(require, "codex.selection")
       if selection_ok and selection.disable then
         selection.disable()
       end
 
-      if claudecode.stop then
-        claudecode.stop()
+      if codex.stop then
+        codex.stop()
       end
     end
 
     _G.require = original_require
-    package.loaded["claudecode"] = nil
-    package.loaded["claudecode.terminal"] = nil
-    package.loaded["claudecode.terminal.snacks"] = nil
-    package.loaded["claudecode.terminal.native"] = nil
+    package.loaded["codex"] = nil
+    package.loaded["codex.terminal"] = nil
+    package.loaded["codex.terminal.snacks"] = nil
+    package.loaded["codex.terminal.native"] = nil
   end)
 
   describe("with native terminal provider", function()
     it("should execute terminal command with appended arguments", function()
-      claudecode.setup({
+      codex.setup({
         auto_start = false,
         terminal_cmd = "test_claude_cmd",
         terminal = { provider = "native" },
       })
 
-      -- Find and execute the ClaudeCode command
+      -- Find and execute the Codex command
       local command_handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCode" then
+        if call.vals[1] == "Codex" then
           command_handler = call.vals[2]
           break
         end
       end
 
-      assert.is_function(command_handler, "ClaudeCode command handler should exist")
+      assert.is_function(command_handler, "Codex command handler should exist")
 
       command_handler({ args = "--resume --verbose" })
 
@@ -249,14 +249,14 @@ describe("ClaudeCode command arguments integration", function()
     end)
 
     it("should work with default claude command and arguments", function()
-      claudecode.setup({
+      codex.setup({
         auto_start = false,
         terminal = { provider = "native" },
       })
 
       local command_handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCodeOpen" then
+        if call.vals[1] == "CodexOpen" then
           command_handler = call.vals[2]
           break
         end
@@ -273,7 +273,7 @@ describe("ClaudeCode command arguments integration", function()
     end)
 
     it("should handle empty arguments gracefully", function()
-      claudecode.setup({
+      codex.setup({
         auto_start = false,
         terminal_cmd = "claude",
         terminal = { provider = "native" },
@@ -281,7 +281,7 @@ describe("ClaudeCode command arguments integration", function()
 
       local command_handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCode" then
+        if call.vals[1] == "Codex" then
           command_handler = call.vals[2]
           break
         end
@@ -302,7 +302,7 @@ describe("ClaudeCode command arguments integration", function()
 
   describe("edge cases", function()
     it("should handle special characters in arguments", function()
-      claudecode.setup({
+      codex.setup({
         auto_start = false,
         terminal_cmd = "claude",
         terminal = { provider = "native" },
@@ -310,7 +310,7 @@ describe("ClaudeCode command arguments integration", function()
 
       local command_handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCode" then
+        if call.vals[1] == "Codex" then
           command_handler = call.vals[2]
           break
         end
@@ -327,7 +327,7 @@ describe("ClaudeCode command arguments integration", function()
     end)
 
     it("should handle very long argument strings", function()
-      claudecode.setup({
+      codex.setup({
         auto_start = false,
         terminal_cmd = "claude",
         terminal = { provider = "native" },
@@ -337,7 +337,7 @@ describe("ClaudeCode command arguments integration", function()
 
       local command_handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCode" then
+        if call.vals[1] == "Codex" then
           command_handler = call.vals[2]
           break
         end
@@ -355,7 +355,7 @@ describe("ClaudeCode command arguments integration", function()
 
   describe("backward compatibility", function()
     it("should not break existing calls without arguments", function()
-      claudecode.setup({
+      codex.setup({
         auto_start = false,
         terminal_cmd = "claude",
         terminal = { provider = "native" },
@@ -363,7 +363,7 @@ describe("ClaudeCode command arguments integration", function()
 
       local command_handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCode" then
+        if call.vals[1] == "Codex" then
           command_handler = call.vals[2]
           break
         end
@@ -378,31 +378,31 @@ describe("ClaudeCode command arguments integration", function()
       assert.is_true(cmd_string == "claude" or cmd_string:find("^claude$") ~= nil, "Should work exactly as before")
     end)
 
-    it("should maintain existing ClaudeCodeClose command functionality", function()
-      claudecode.setup({ auto_start = false })
+    it("should maintain existing CodexClose command functionality", function()
+      codex.setup({ auto_start = false })
 
       local close_command_found = false
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCodeClose" then
+        if call.vals[1] == "CodexClose" then
           close_command_found = true
           local config = call.vals[3]
-          assert.is_nil(config.nargs, "ClaudeCodeClose should not accept arguments")
+          assert.is_nil(config.nargs, "CodexClose should not accept arguments")
           break
         end
       end
 
-      assert.is_true(close_command_found, "ClaudeCodeClose command should still be registered")
+      assert.is_true(close_command_found, "CodexClose command should still be registered")
     end)
 
     it("should pass cwd in termopen opts when terminal.cwd is set", function()
-      claudecode.setup({
+      codex.setup({
         auto_start = false,
         terminal = { provider = "native", cwd = "/mock/repo" },
       })
 
       local handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCode" then
+        if call.vals[1] == "Codex" then
           handler = call.vals[2]
           break
         end
@@ -417,7 +417,7 @@ describe("ClaudeCode command arguments integration", function()
     end)
 
     it("should support cwd_provider function for working directory", function()
-      claudecode.setup({
+      codex.setup({
         auto_start = false,
         terminal = {
           provider = "native",
@@ -429,7 +429,7 @@ describe("ClaudeCode command arguments integration", function()
 
       local handler
       for _, call in ipairs(vim.api.nvim_create_user_command.calls) do
-        if call.vals[1] == "ClaudeCode" then
+        if call.vals[1] == "Codex" then
           handler = call.vals[2]
           break
         end

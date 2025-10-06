@@ -1,16 +1,16 @@
 # codex.nvim
 
-> **Project intention:** This fork preserves the polished Neovim experience delivered by the original `[claudecode.nvim](https://github.com/coder/claudecode.nvim)` while substituting OpenAI Codex as the underlying assistant. The goal is to maintain the mature workflow (commands, keymaps, diff tooling) users rely on, merely rerouting the backend from Anthropic's Claude Code to Codex.
+> **Project intention:** This fork preserves the polished Neovim experience delivered by the original `[codex.nvim](https://github.com/coder/codex.nvim)` while substituting OpenAI Codex as the underlying assistant. The goal is to maintain the mature workflow (commands, keymaps, diff tooling) users rely on, merely rerouting the backend from Anthropic's Claude Code to Codex.
 
-[![Tests](https://github.com/coder/claudecode.nvim/actions/workflows/test.yml/badge.svg)](https://github.com/coder/claudecode.nvim/actions/workflows/test.yml)
+[![Tests](https://github.com/coder/codex.nvim/actions/workflows/test.yml/badge.svg)](https://github.com/coder/codex.nvim/actions/workflows/test.yml)
 ![Neovim version](https://img.shields.io/badge/Neovim-0.8%2B-green)
 ![Status](https://img.shields.io/badge/Status-beta-blue)
 
 **Bring OpenAI Codex to Neovim** — launch the Codex CLI from inside your editor with a pure Lua implementation.
 
-> 🎯 **TL;DR:** Codex ships with an `app-server` JSON-RPC interface. This plugin now boots that process for you, keeps the existing `ClaudeCode*` commands/keymaps, and streams your selections/files straight to Codex.
+> 🎯 **TL;DR:** Codex ships with an `app-server` JSON-RPC interface. This plugin now boots that process for you, keeps the existing `Codex*` commands/keymaps, and streams your selections/files straight to Codex.
 
-> **Heads-up:** The legacy command names remain (`ClaudeCode*`). Runtime behaviour now targets Codex, and some documentation below still references Claude until it is fully rewritten.
+> **Heads-up:** The legacy command names remain (`Codex*`). Runtime behaviour now targets Codex, and some documentation below still references Claude until it is fully rewritten.
 
 <https://github.com/user-attachments/assets/9c310fb5-5a23-482b-bedc-e21ae457a82d>
 
@@ -27,27 +27,27 @@ OpenAI's Codex CLI focuses on VS Code-style integrations. As a Neovim user, I wa
 
 ```lua
 {
-  "coder/claudecode.nvim",
+  "coder/codex.nvim",
   dependencies = { "folke/snacks.nvim" },
   config = true,
   keys = {
     { "<leader>a", nil, desc = "AI/Codex" },
-    { "<leader>ac", "<cmd>ClaudeCode<cr>", desc = "Toggle Codex" },
-    { "<leader>af", "<cmd>ClaudeCodeFocus<cr>", desc = "Focus Codex" },
-    { "<leader>ar", "<cmd>ClaudeCode --resume<cr>", desc = "Resume Codex" },
-    { "<leader>aC", "<cmd>ClaudeCode --continue<cr>", desc = "Continue Codex" },
-    { "<leader>am", "<cmd>ClaudeCodeSelectModel<cr>", desc = "Select Codex model" },
-    { "<leader>ab", "<cmd>ClaudeCodeAdd %<cr>", desc = "Add current buffer" },
-    { "<leader>as", "<cmd>ClaudeCodeSend<cr>", mode = "v", desc = "Send to Codex" },
+    { "<leader>ac", "<cmd>Codex<cr>", desc = "Toggle Codex" },
+    { "<leader>af", "<cmd>CodexFocus<cr>", desc = "Focus Codex" },
+    { "<leader>ar", "<cmd>Codex --resume<cr>", desc = "Resume Codex" },
+    { "<leader>aC", "<cmd>Codex --continue<cr>", desc = "Continue Codex" },
+    { "<leader>am", "<cmd>CodexSelectModel<cr>", desc = "Select Codex model" },
+    { "<leader>ab", "<cmd>CodexAdd %<cr>", desc = "Add current buffer" },
+    { "<leader>as", "<cmd>CodexSend<cr>", mode = "v", desc = "Send to Codex" },
     {
       "<leader>as",
-      "<cmd>ClaudeCodeTreeAdd<cr>",
+      "<cmd>CodexTreeAdd<cr>",
       desc = "Add file",
       ft = { "NvimTree", "neo-tree", "oil", "minifiles", "netrw" },
     },
     -- Diff management
-    { "<leader>aa", "<cmd>ClaudeCodeDiffAccept<cr>", desc = "Accept diff" },
-    { "<leader>ad", "<cmd>ClaudeCodeDiffDeny<cr>", desc = "Deny diff" },
+    { "<leader>aa", "<cmd>CodexDiffAccept<cr>", desc = "Accept diff" },
+    { "<leader>ad", "<cmd>CodexDiffDeny<cr>", desc = "Deny diff" },
   },
 }
 ```
@@ -62,25 +62,25 @@ That's it! The plugin will auto-configure everything else.
 
 ### Customising the Codex binary
 
-By default the plugin executes `codex app-server`. If you installed the CLI somewhere else, set `opts.codex_cmd = "/path/to/codex"` (or pass the argument directly to `require("claudecode").setup`).
+By default the plugin executes `codex app-server`. If you installed the CLI somewhere else, set `opts.codex_cmd = "/path/to/codex"` (or pass the argument directly to `require("codex").setup`).
 
 ## Quick Demo
 
 ```vim
 " Launch Codex in a split
-:ClaudeCode
+:Codex
 
 " Codex now sees your current file and selections in real-time!
 
 " Send visual selection as context
-:'<,'>ClaudeCodeSend
+:'<,'>CodexSend
 
 " Codex can open files, show diffs, and more
 ```
 
 ## Usage
 
-1. **Launch Codex**: Run `:ClaudeCode` to open Codex in a split terminal
+1. **Launch Codex**: Run `:Codex` to open Codex in a split terminal
 2. **Send context**:
    - Select text in visual mode and use `<leader>as` to send it to Codex
    - In `nvim-tree`/`neo-tree`/`oil.nvim`/`mini.nvim`, press `<leader>as` on a file to add it to Codex's context
@@ -92,13 +92,13 @@ By default the plugin executes `codex app-server`. If you installed the CLI some
 
 ## Key Commands
 
-- `:ClaudeCode` - Toggle the Codex terminal window
-- `:ClaudeCodeFocus` - Smart focus/toggle Codex terminal
-- `:ClaudeCodeSelectModel` - Select Codex model and open terminal with optional arguments
-- `:ClaudeCodeSend` - Send current visual selection to Codex
-- `:ClaudeCodeAdd <file-path> [start-line] [end-line]` - Add specific file to Codex context with optional line range
-- `:ClaudeCodeDiffAccept` - Accept diff changes
-- `:ClaudeCodeDiffDeny` - Reject diff changes
+- `:Codex` - Toggle the Codex terminal window
+- `:CodexFocus` - Smart focus/toggle Codex terminal
+- `:CodexSelectModel` - Select Codex model and open terminal with optional arguments
+- `:CodexSend` - Send current visual selection to Codex
+- `:CodexAdd <file-path> [start-line] [end-line]` - Add specific file to Codex context with optional line range
+- `:CodexDiffAccept` - Accept diff changes
+- `:CodexDiffDeny` - Reject diff changes
 
 ## Working with Diffs
 
@@ -139,7 +139,7 @@ For deep technical details, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ```lua
 {
-  "coder/claudecode.nvim",
+  "coder/codex.nvim",
   dependencies = { "folke/snacks.nvim" },
   opts = {
     -- Server Configuration
@@ -201,22 +201,22 @@ You can fix the Claude terminal's working directory regardless of `autochdir` an
 Examples:
 
 ```lua
-require("claudecode").setup({
+require("codex").setup({
   -- Top-level aliases are supported and forwarded to terminal config
   git_repo_cwd = true,
 })
 
-require("claudecode").setup({
+require("codex").setup({
   terminal = {
     cwd = vim.fn.expand("~/projects/my-app"),
   },
 })
 
-require("claudecode").setup({
+require("codex").setup({
   terminal = {
     cwd_provider = function(ctx)
       -- Prefer repo root; fallback to file's directory
-      local cwd = require("claudecode.cwd").git_root(ctx.file_dir or ctx.cwd) or ctx.file_dir or ctx.cwd
+      local cwd = require("codex.cwd").git_root(ctx.file_dir or ctx.cwd) or ctx.file_dir or ctx.cwd
       return cwd
     end,
   },
@@ -233,10 +233,10 @@ The `snacks_win_opts` configuration allows you to create floating Claude Code te
 local toggle_key = "<C-,>"
 return {
   {
-    "coder/claudecode.nvim",
+    "coder/codex.nvim",
     dependencies = { "folke/snacks.nvim" },
     keys = {
-      { toggle_key, "<cmd>ClaudeCodeFocus<cr>", desc = "Claude Code", mode = { "n", "x" } },
+      { toggle_key, "<cmd>CodexFocus<cr>", desc = "Claude Code", mode = { "n", "x" } },
     },
     opts = {
       terminal = {
@@ -270,10 +270,10 @@ return {
 local toggle_key = "<M-,>"  -- Alt/Meta + comma
 return {
   {
-    "coder/claudecode.nvim",
+    "coder/codex.nvim",
     dependencies = { "folke/snacks.nvim" },
     keys = {
-      { toggle_key, "<cmd>ClaudeCodeFocus<cr>", desc = "Claude Code", mode = { "n", "x" } },
+      { toggle_key, "<cmd>CodexFocus<cr>", desc = "Claude Code", mode = { "n", "x" } },
     },
     opts = {
       terminal = {
@@ -298,7 +298,7 @@ return {
 <summary>Centered Floating Window with Custom Styling</summary>
 
 ```lua
-require("claudecode").setup({
+require("codex").setup({
   terminal = {
     snacks_win_opts = {
       position = "float",
@@ -322,12 +322,12 @@ require("claudecode").setup({
 
 ```lua
 {
-  "coder/claudecode.nvim",
+  "coder/codex.nvim",
   dependencies = { "folke/snacks.nvim" },
   keys = {
-    { "<C-,>", "<cmd>ClaudeCodeFocus<cr>", desc = "Claude Code (Ctrl+,)", mode = { "n", "x" } },
-    { "<M-,>", "<cmd>ClaudeCodeFocus<cr>", desc = "Claude Code (Alt+,)", mode = { "n", "x" } },
-    { "<leader>tc", "<cmd>ClaudeCodeFocus<cr>", desc = "Toggle Claude", mode = { "n", "x" } },
+    { "<C-,>", "<cmd>CodexFocus<cr>", desc = "Claude Code (Ctrl+,)", mode = { "n", "x" } },
+    { "<M-,>", "<cmd>CodexFocus<cr>", desc = "Claude Code (Alt+,)", mode = { "n", "x" } },
+    { "<leader>tc", "<cmd>CodexFocus<cr>", desc = "Toggle Claude", mode = { "n", "x" } },
   },
   opts = {
     terminal = {
@@ -395,7 +395,7 @@ Run Claude Code without any terminal management inside Neovim. This is useful fo
 
 ```lua
 {
-  "coder/claudecode.nvim",
+  "coder/codex.nvim",
   opts = {
     terminal = {
       provider = "none", -- no UI actions; server + tools remain available
@@ -406,7 +406,7 @@ Run Claude Code without any terminal management inside Neovim. This is useful fo
 
 Notes:
 
-- No windows/buffers are created. `:ClaudeCode` and related commands will not open anything.
+- No windows/buffers are created. `:Codex` and related commands will not open anything.
 - The WebSocket server still starts and broadcasts work as usual. Launch the Claude CLI externally when desired.
 
 ### External Terminal Provider
@@ -416,7 +416,7 @@ Run Claude Code in a separate terminal application outside of Neovim:
 ```lua
 -- Using a string template (simple)
 {
-  "coder/claudecode.nvim",
+  "coder/codex.nvim",
   opts = {
     terminal = {
       provider = "external",
@@ -430,7 +430,7 @@ Run Claude Code in a separate terminal application outside of Neovim:
 
 -- Using a function for dynamic command generation (advanced)
 {
-  "coder/claudecode.nvim",
+  "coder/codex.nvim",
   opts = {
     terminal = {
       provider = "external",
@@ -454,7 +454,7 @@ Run Claude Code in a separate terminal application outside of Neovim:
 You can create custom terminal providers by passing a table with the required functions instead of a string provider name:
 
 ```lua
-require("claudecode").setup({
+require("codex").setup({
   terminal = {
     provider = {
       -- Required functions
@@ -554,7 +554,7 @@ local my_terminal_provider = {
   end,
 }
 
-require("claudecode").setup({
+require("codex").setup({
   terminal = {
     provider = my_terminal_provider,
   },
@@ -567,11 +567,11 @@ Note: If your command or working directory may contain spaces or special charact
 
 ## Community Extensions
 
-The following are third-party community extensions that complement claudecode.nvim. **These extensions are not affiliated with Coder and are maintained independently by community members.** We do not ensure that these extensions work correctly or provide support for them.
+The following are third-party community extensions that complement codex.nvim. **These extensions are not affiliated with Coder and are maintained independently by community members.** We do not ensure that these extensions work correctly or provide support for them.
 
 ### 🔍 [claude-fzf.nvim](https://github.com/pittcat/claude-fzf.nvim)
 
-Integrates fzf-lua's file selection with claudecode.nvim's context management:
+Integrates fzf-lua's file selection with codex.nvim's context management:
 
 - Batch file selection with fzf-lua multi-select
 - Smart search integration with grep → Claude
@@ -603,7 +603,7 @@ opts = {
       return false
     end
 
-    -- Exclude claudecode diff buffers by buffer name patterns
+    -- Exclude codex diff buffers by buffer name patterns
     local bufname = vim.api.nvim_buf_get_name(buf)
     if bufname:match("%(proposed%)") or
        bufname:match("%(NEW FILE %- proposed%)") or
@@ -611,14 +611,14 @@ opts = {
       return false
     end
 
-    -- Exclude by buffer variables (claudecode sets these)
-    if vim.b[buf].claudecode_diff_tab_name or
-       vim.b[buf].claudecode_diff_new_win or
-       vim.b[buf].claudecode_diff_target_win then
+    -- Exclude by buffer variables (codex sets these)
+    if vim.b[buf].codex_diff_tab_name or
+       vim.b[buf].codex_diff_new_win or
+       vim.b[buf].codex_diff_target_win then
       return false
     end
 
-    -- Exclude by buffer type (claudecode diff buffers use "acwrite")
+    -- Exclude by buffer type (codex diff buffers use "acwrite")
     local buftype = fn.getbufvar(buf, "&buftype")
     if buftype == "acwrite" then
       return false
@@ -637,22 +637,22 @@ opts = {
 opts = {
   -- ... other options
   condition = function(buf)
-    -- Exclude claudecode diff buffers by buffer name patterns
+    -- Exclude codex diff buffers by buffer name patterns
     local bufname = vim.api.nvim_buf_get_name(buf)
     if bufname:match('%(proposed%)') or bufname:match('%(NEW FILE %- proposed%)') or bufname:match('%(New%)') then
       return false
     end
 
-    -- Exclude by buffer variables (claudecode sets these)
+    -- Exclude by buffer variables (codex sets these)
     if
-      vim.b[buf].claudecode_diff_tab_name
-      or vim.b[buf].claudecode_diff_new_win
-      or vim.b[buf].claudecode_diff_target_win
+      vim.b[buf].codex_diff_tab_name
+      or vim.b[buf].codex_diff_new_win
+      or vim.b[buf].codex_diff_target_win
     then
       return false
     end
 
-    -- Exclude by buffer type (claudecode diff buffers use "acwrite")
+    -- Exclude by buffer type (codex diff buffers use "acwrite")
     local buftype = vim.fn.getbufvar(buf, '&buftype')
     if buftype == 'acwrite' then
       return false
@@ -667,7 +667,7 @@ opts = {
 
 ## Troubleshooting
 
-- **Claude not connecting?** Check `:ClaudeCodeStatus` and verify lock file exists in `~/.claude/ide/` (or `$CLAUDE_CONFIG_DIR/ide/` if `CLAUDE_CONFIG_DIR` is set)
+- **Claude not connecting?** Check `:CodexStatus` and verify lock file exists in `~/.claude/ide/` (or `$CLAUDE_CONFIG_DIR/ide/` if `CLAUDE_CONFIG_DIR` is set)
 - **Need debug logs?** Set `log_level = "debug"` in opts
 - **Terminal issues?** Try `provider = "native"` if using snacks.nvim
 - **Local installation not working?** If you used `claude migrate-installer`, set `terminal_cmd = "~/.claude/local/claude"` in your config. Check `which claude` vs `ls ~/.claude/local/claude` to verify your installation type.

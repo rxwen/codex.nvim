@@ -3,7 +3,7 @@ require("tests.mocks.vim")
 
 describe("focus_after_send behavior", function()
   local saved_require
-  local claudecode
+  local codex
 
   local mock_terminal
   local mock_logger
@@ -46,22 +46,22 @@ describe("focus_after_send behavior", function()
             keep_terminal_focus = false,
             on_new_file_reject = "keep_empty",
           },
-          models = { { name = "Claude Sonnet 4 (Latest)", value = "sonnet" } },
+          models = { { name = "Codex Sonnet 4 (Latest)", value = "sonnet" } },
         }
       end,
     }
 
     saved_require = _G.require
     _G.require = function(mod)
-      if mod == "claudecode.config" then
+      if mod == "codex.config" then
         return mock_config
-      elseif mod == "claudecode.logger" then
+      elseif mod == "codex.logger" then
         return mock_logger
-      elseif mod == "claudecode.diff" then
+      elseif mod == "codex.diff" then
         return { setup = function() end }
-      elseif mod == "claudecode.terminal" then
+      elseif mod == "codex.terminal" then
         return mock_terminal
-      elseif mod == "claudecode.server.init" then
+      elseif mod == "codex.server.init" then
         return {
           get_status = function()
             return { running = true, client_count = 1 }
@@ -75,12 +75,12 @@ describe("focus_after_send behavior", function()
 
   local function teardown_mocks()
     _G.require = saved_require
-    package.loaded["claudecode"] = nil
-    package.loaded["claudecode.config"] = nil
-    package.loaded["claudecode.logger"] = nil
-    package.loaded["claudecode.diff"] = nil
-    package.loaded["claudecode.terminal"] = nil
-    package.loaded["claudecode.server.init"] = nil
+    package.loaded["codex"] = nil
+    package.loaded["codex.config"] = nil
+    package.loaded["codex.logger"] = nil
+    package.loaded["codex.diff"] = nil
+    package.loaded["codex.terminal"] = nil
+    package.loaded["codex.server.init"] = nil
   end
 
   after_each(function()
@@ -90,17 +90,17 @@ describe("focus_after_send behavior", function()
   it("focuses terminal with open() when enabled", function()
     setup_mocks(true)
 
-    claudecode = require("claudecode")
-    claudecode.setup({})
+    codex = require("codex")
+    codex.setup({})
 
     -- Mark server as present and stub low-level broadcast to succeed
-    claudecode.state.server = mock_server_facade
-    claudecode._broadcast_at_mention = spy.new(function()
+    codex.state.server = mock_server_facade
+    codex._broadcast_at_mention = spy.new(function()
       return true, nil
     end)
 
     -- Act
-    local ok, err = claudecode.send_at_mention("/tmp/file.lua", nil, nil, "test")
+    local ok, err = codex.send_at_mention("/tmp/file.lua", nil, nil, "test")
     assert.is_true(ok)
     assert.is_nil(err)
 
@@ -112,15 +112,15 @@ describe("focus_after_send behavior", function()
   it("only ensures visibility when disabled (default)", function()
     setup_mocks(false)
 
-    claudecode = require("claudecode")
-    claudecode.setup({})
+    codex = require("codex")
+    codex.setup({})
 
-    claudecode.state.server = mock_server_facade
-    claudecode._broadcast_at_mention = spy.new(function()
+    codex.state.server = mock_server_facade
+    codex._broadcast_at_mention = spy.new(function()
       return true, nil
     end)
 
-    local ok, err = claudecode.send_at_mention("/tmp/file.lua", nil, nil, "test")
+    local ok, err = codex.send_at_mention("/tmp/file.lua", nil, nil, "test")
     assert.is_true(ok)
     assert.is_nil(err)
 

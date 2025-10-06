@@ -1,6 +1,6 @@
 --- Tests for MCP-compliant openDiff blocking behavior
 require("tests.busted_setup")
-local diff = require("claudecode.diff")
+local diff = require("codex.diff")
 
 describe("MCP-compliant diff operations", function()
   local test_old_file = "/tmp/test_old_file.txt"
@@ -170,7 +170,7 @@ describe("MCP-compliant diff operations", function()
     end)
 
     it("should clean up autocmds on completion", function()
-      local initial_autocmd_count = #vim.api.nvim_get_autocmds({ group = "ClaudeCodeMCPDiff" })
+      local initial_autocmd_count = #vim.api.nvim_get_autocmds({ group = "CodexMCPDiff" })
 
       local co = coroutine.create(function()
         diff.open_diff_blocking(test_old_file, test_new_file, test_content_new, test_tab_name)
@@ -178,7 +178,7 @@ describe("MCP-compliant diff operations", function()
       coroutine.resume(co)
 
       -- Verify autocmds were created
-      local mid_autocmd_count = #vim.api.nvim_get_autocmds({ group = "ClaudeCodeMCPDiff" })
+      local mid_autocmd_count = #vim.api.nvim_get_autocmds({ group = "CodexMCPDiff" })
       assert.is_true(mid_autocmd_count > initial_autocmd_count, "Autocmds should be created")
 
       -- Simulate completion and explicit close_tab
@@ -192,7 +192,7 @@ describe("MCP-compliant diff operations", function()
       end)
 
       -- Check that autocmds were cleaned up
-      local final_autocmd_count = #vim.api.nvim_get_autocmds({ group = "ClaudeCodeMCPDiff" })
+      local final_autocmd_count = #vim.api.nvim_get_autocmds({ group = "CodexMCPDiff" })
       assert.equal(initial_autocmd_count, final_autocmd_count, "Autocmds should be cleaned up")
     end)
   end)

@@ -1,9 +1,9 @@
-describe("claudecode.terminal (wrapper for Snacks.nvim)", function()
+describe("codex.terminal (wrapper for Snacks.nvim)", function()
   local terminal_wrapper
   local spy
   local mock_snacks_module
   local mock_snacks_terminal
-  local mock_claudecode_config_module
+  local mock_codex_config_module
   local mock_snacks_provider
   local mock_native_provider
   local last_created_mock_term_instance
@@ -222,16 +222,16 @@ describe("claudecode.terminal (wrapper for Snacks.nvim)", function()
       },
     }
 
-    package.loaded["claudecode.terminal"] = nil
-    package.loaded["claudecode.terminal.snacks"] = nil
-    package.loaded["claudecode.terminal.native"] = nil
-    package.loaded["claudecode.server.init"] = nil
+    package.loaded["codex.terminal"] = nil
+    package.loaded["codex.terminal.snacks"] = nil
+    package.loaded["codex.terminal.native"] = nil
+    package.loaded["codex.server.init"] = nil
     package.loaded["snacks"] = nil
-    package.loaded["claudecode.config"] = nil
-    package.loaded["claudecode.logger"] = nil
+    package.loaded["codex.config"] = nil
+    package.loaded["codex.logger"] = nil
 
     -- Mock logger
-    package.loaded["claudecode.logger"] = {
+    package.loaded["codex.logger"] = {
       debug = function() end,
       warn = function(context, message)
         vim.notify(message, vim.log.levels.WARN)
@@ -245,9 +245,9 @@ describe("claudecode.terminal (wrapper for Snacks.nvim)", function()
     local mock_server_module = {
       state = { port = 12345 },
     }
-    package.loaded["claudecode.server.init"] = mock_server_module
+    package.loaded["codex.server.init"] = mock_server_module
 
-    mock_claudecode_config_module = {
+    mock_codex_config_module = {
       apply = spy.new(function(user_conf)
         local base_config = { terminal_cmd = "claude" }
         if user_conf and user_conf.terminal_cmd then
@@ -256,7 +256,7 @@ describe("claudecode.terminal (wrapper for Snacks.nvim)", function()
         return base_config
       end),
     }
-    package.loaded["claudecode.config"] = mock_claudecode_config_module
+    package.loaded["codex.config"] = mock_codex_config_module
 
     -- Mock the provider modules
     mock_snacks_provider = {
@@ -282,7 +282,7 @@ describe("claudecode.terminal (wrapper for Snacks.nvim)", function()
         return last_created_mock_term_instance
       end),
     }
-    package.loaded["claudecode.terminal.snacks"] = mock_snacks_provider
+    package.loaded["codex.terminal.snacks"] = mock_snacks_provider
 
     mock_native_provider = {
       setup = spy.new(function() end),
@@ -298,7 +298,7 @@ describe("claudecode.terminal (wrapper for Snacks.nvim)", function()
         return true
       end),
     }
-    package.loaded["claudecode.terminal.native"] = mock_native_provider
+    package.loaded["codex.terminal.native"] = mock_native_provider
 
     mock_snacks_terminal = {
       open = spy.new(create_mock_terminal_instance),
@@ -318,7 +318,7 @@ describe("claudecode.terminal (wrapper for Snacks.nvim)", function()
     mock_snacks_module = { terminal = mock_snacks_terminal }
     package.loaded["snacks"] = mock_snacks_module
 
-    vim.g.claudecode_user_config = {}
+    vim.g.codex_user_config = {}
 
     local original_mock_vim_deepcopy = _G.vim.deepcopy
     _G.vim.deepcopy = spy.new(function(tbl)
@@ -361,18 +361,18 @@ describe("claudecode.terminal (wrapper for Snacks.nvim)", function()
     vim.cmd = spy.new(function(_cmd_str) end)
     vim.notify = spy.new(function(_msg, _level) end)
 
-    terminal_wrapper = require("claudecode.terminal")
+    terminal_wrapper = require("codex.terminal")
     -- Don't call setup({}) here to allow custom provider tests to work
   end)
 
   after_each(function()
-    package.loaded["claudecode.terminal"] = nil
-    package.loaded["claudecode.terminal.snacks"] = nil
-    package.loaded["claudecode.terminal.native"] = nil
-    package.loaded["claudecode.server.init"] = nil
+    package.loaded["codex.terminal"] = nil
+    package.loaded["codex.terminal.snacks"] = nil
+    package.loaded["codex.terminal.native"] = nil
+    package.loaded["codex.server.init"] = nil
     package.loaded["snacks"] = nil
-    package.loaded["claudecode.config"] = nil
-    package.loaded["claudecode.logger"] = nil
+    package.loaded["codex.config"] = nil
+    package.loaded["codex.logger"] = nil
     if _G.vim and _G.vim._mock and _G.vim._mock.reset then
       _G.vim._mock.reset()
     end
@@ -427,7 +427,7 @@ describe("claudecode.terminal (wrapper for Snacks.nvim)", function()
       assert.are.equal("right", config_arg.split_side)
       assert.are.equal(0.30, config_arg.split_width_percentage)
       vim.notify:was_called_with(
-        "claudecode.terminal.setup expects a table or nil for user_term_config",
+        "codex.terminal.setup expects a table or nil for user_term_config",
         vim.log.levels.WARN
       )
     end)
@@ -437,13 +437,13 @@ describe("claudecode.terminal (wrapper for Snacks.nvim)", function()
     it(
       "should call Snacks.terminal.open with default 'claude' command if terminal_cmd is not set in main config",
       function()
-        vim.g.claudecode_user_config = {}
-        mock_claudecode_config_module.apply = spy.new(function()
+        vim.g.codex_user_config = {}
+        mock_codex_config_module.apply = spy.new(function()
           return { terminal_cmd = "claude" }
         end)
-        package.loaded["claudecode.config"] = mock_claudecode_config_module
-        package.loaded["claudecode.terminal"] = nil
-        terminal_wrapper = require("claudecode.terminal")
+        package.loaded["codex.config"] = mock_codex_config_module
+        package.loaded["codex.terminal"] = nil
+        terminal_wrapper = require("codex.terminal")
         terminal_wrapper.setup({})
 
         terminal_wrapper.open()
@@ -463,13 +463,13 @@ describe("claudecode.terminal (wrapper for Snacks.nvim)", function()
     )
 
     it("should call Snacks.terminal.open with terminal_cmd from main config", function()
-      vim.g.claudecode_user_config = { terminal_cmd = "my_claude_cli" }
-      mock_claudecode_config_module.apply = spy.new(function()
+      vim.g.codex_user_config = { terminal_cmd = "my_claude_cli" }
+      mock_codex_config_module.apply = spy.new(function()
         return { terminal_cmd = "my_claude_cli" }
       end)
-      package.loaded["claudecode.config"] = mock_claudecode_config_module
-      package.loaded["claudecode.terminal"] = nil
-      terminal_wrapper = require("claudecode.terminal")
+      package.loaded["codex.config"] = mock_codex_config_module
+      package.loaded["codex.terminal"] = nil
+      terminal_wrapper = require("codex.terminal")
       terminal_wrapper.setup({}, "my_claude_cli")
 
       terminal_wrapper.open()
@@ -499,15 +499,15 @@ describe("claudecode.terminal (wrapper for Snacks.nvim)", function()
     it("should call provider open and handle nil return gracefully", function()
       mock_snacks_provider.open = spy.new(function()
         -- Simulate provider handling its own failure notification
-        vim.notify("Failed to open Claude terminal using Snacks.", vim.log.levels.ERROR)
+        vim.notify("Failed to open Codex terminal using Snacks.", vim.log.levels.ERROR)
         return nil
       end)
       vim.notify:reset()
       terminal_wrapper.open()
-      vim.notify:was_called_with("Failed to open Claude terminal using Snacks.", vim.log.levels.ERROR)
+      vim.notify:was_called_with("Failed to open Codex terminal using Snacks.", vim.log.levels.ERROR)
       mock_snacks_provider.open:reset()
       mock_snacks_provider.open = spy.new(function()
-        vim.notify("Failed to open Claude terminal using Snacks.", vim.log.levels.ERROR)
+        vim.notify("Failed to open Codex terminal using Snacks.", vim.log.levels.ERROR)
         return nil
       end)
       terminal_wrapper.open()
@@ -520,15 +520,15 @@ describe("claudecode.terminal (wrapper for Snacks.nvim)", function()
       end) }
       mock_snacks_provider.open = spy.new(function()
         -- Simulate provider handling its own failure notification
-        vim.notify("Failed to open Claude terminal using Snacks.", vim.log.levels.ERROR)
+        vim.notify("Failed to open Codex terminal using Snacks.", vim.log.levels.ERROR)
         return invalid_instance
       end)
       vim.notify:reset()
       terminal_wrapper.open()
-      vim.notify:was_called_with("Failed to open Claude terminal using Snacks.", vim.log.levels.ERROR)
+      vim.notify:was_called_with("Failed to open Codex terminal using Snacks.", vim.log.levels.ERROR)
       mock_snacks_provider.open:reset()
       mock_snacks_provider.open = spy.new(function()
-        vim.notify("Failed to open Claude terminal using Snacks.", vim.log.levels.ERROR)
+        vim.notify("Failed to open Codex terminal using Snacks.", vim.log.levels.ERROR)
         return invalid_instance
       end)
       terminal_wrapper.open()
@@ -565,13 +565,13 @@ describe("claudecode.terminal (wrapper for Snacks.nvim)", function()
 
   describe("terminal.toggle", function()
     it("should call Snacks.terminal.toggle with correct command and options", function()
-      vim.g.claudecode_user_config = { terminal_cmd = "toggle_claude" }
-      mock_claudecode_config_module.apply = spy.new(function()
+      vim.g.codex_user_config = { terminal_cmd = "toggle_claude" }
+      mock_codex_config_module.apply = spy.new(function()
         return { terminal_cmd = "toggle_claude" }
       end)
-      package.loaded["claudecode.config"] = mock_claudecode_config_module
-      package.loaded["claudecode.terminal"] = nil
-      terminal_wrapper = require("claudecode.terminal")
+      package.loaded["codex.config"] = mock_codex_config_module
+      package.loaded["codex.terminal"] = nil
+      terminal_wrapper = require("codex.terminal")
       terminal_wrapper.setup({ split_side = "left", split_width_percentage = 0.4 }, "toggle_claude")
 
       terminal_wrapper.toggle({ split_width_percentage = 0.45 })

@@ -12,11 +12,11 @@ describe("Tool: get_latest_selection", function()
         return nil
       end),
     }
-    package.loaded["claudecode.selection"] = mock_selection_module
+    package.loaded["codex.selection"] = mock_selection_module
 
     -- Reset and require the module under test
-    package.loaded["claudecode.tools.get_latest_selection"] = nil
-    get_latest_selection_handler = require("claudecode.tools.get_latest_selection").handler
+    package.loaded["codex.tools.get_latest_selection"] = nil
+    get_latest_selection_handler = require("codex.tools.get_latest_selection").handler
 
     -- Mock vim.json functions
     _G.vim = _G.vim or {}
@@ -27,8 +27,8 @@ describe("Tool: get_latest_selection", function()
   end)
 
   after_each(function()
-    package.loaded["claudecode.selection"] = nil
-    package.loaded["claudecode.tools.get_latest_selection"] = nil
+    package.loaded["codex.selection"] = nil
+    package.loaded["codex.tools.get_latest_selection"] = nil
     _G.vim.json.encode = nil
   end)
 
@@ -79,11 +79,11 @@ describe("Tool: get_latest_selection", function()
 
   it("should handle pcall failure when requiring selection module", function()
     -- Simulate require failing
-    package.loaded["claudecode.selection"] = nil
+    package.loaded["codex.selection"] = nil
     local original_require = _G.require
     _G.require = function(mod_name)
-      if mod_name == "claudecode.selection" then
-        error("Simulated require failure for claudecode.selection")
+      if mod_name == "codex.selection" then
+        error("Simulated require failure for codex.selection")
       end
       return original_require(mod_name)
     end

@@ -7,12 +7,12 @@ describe("Directory At Mention Functionality", function()
   local mock_vim
 
   local function setup_mocks()
-    package.loaded["claudecode.integrations"] = nil
-    package.loaded["claudecode.visual_commands"] = nil
-    package.loaded["claudecode.logger"] = nil
+    package.loaded["codex.integrations"] = nil
+    package.loaded["codex.visual_commands"] = nil
+    package.loaded["codex.logger"] = nil
 
     -- Mock logger
-    package.loaded["claudecode.logger"] = {
+    package.loaded["codex.logger"] = {
       debug = function() end,
       warn = function() end,
       error = function() end,
@@ -53,7 +53,7 @@ describe("Directory At Mention Functionality", function()
 
   describe("directory handling in integrations", function()
     before_each(function()
-      integrations = require("claudecode.integrations")
+      integrations = require("codex.integrations")
     end)
 
     it("should return directory paths from neo-tree", function()
@@ -112,7 +112,7 @@ describe("Directory At Mention Functionality", function()
 
   describe("visual commands directory handling", function()
     before_each(function()
-      visual_commands = require("claudecode.visual_commands")
+      visual_commands = require("codex.visual_commands")
     end)
 
     it("should include directories in visual selections", function()

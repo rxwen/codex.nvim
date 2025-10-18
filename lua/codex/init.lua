@@ -9,6 +9,7 @@ local M = {}
 
 local logger = require("codex.logger")
 local codex_client = require("codex.codex_client")
+local approvals = require("codex.approvals")
 
 --- Current plugin version
 ---@type CodexVersion
@@ -35,6 +36,7 @@ M.state = {
   mention_queue = {},
   mention_timer = nil,
   connection_timer = nil,
+  session = nil,
 }
 
 ---Check if Codex Code is connected to WebSocket server
@@ -343,6 +345,41 @@ function M.setup(opts)
 
   local diff = require("codex.diff")
   diff.setup(M.state.config)
+
+  codex_client.register_request_handlers({
+    applyPatchApproval = approvals.handle_patch_approval,
+    execCommandApproval = approvals.handle_exec_command_approval,
+  })
+
+  codex_client.on_event(function(event_type, payload)
+    local ok, chat_module = pcall(require, "codex.chat")
+    if not ok then
+      return
+    end
+
+    if event_type == "agent_message" and payload.msg and payload.msg.message then
+      chat_module.append_agent_message(payload.msg.message)
+    elseif event_type == "agent_message_delta" and payload.msg and payload.msg.delta then
+      chat_module.append_agent_delta(payload.msg.delta)
+    elseif event_type == "user_message" and payload.msg and payload.msg.message then
+      chat_module.append_user_message(payload.msg.message)
+    elseif event_type == "task_started" then
+      chat_module.append_system_message("Codex task started")
+    elseif event_type == "task_complete" then
+      chat_module.append_system_message("Codex task complete")
+    end
+  end)
+
+  codex_client.on_session_configured(function(info)
+    M.state.session = info or {}
+    local model_name = (info and info.model) or (M.state.config and M.state.config.default_model) or "unknown"
+    logger.info("init", string.format("Codex session configured (%s)", model_name))
+
+    local ok, chat_module = pcall(require, "codex.chat")
+    if ok then
+      chat_module.append_system_message(string.format("Session ready (%s)", model_name))
+    end
+  end)
 
   if M.state.config.auto_start then
     M.start(false) -- Suppress notification on auto-start

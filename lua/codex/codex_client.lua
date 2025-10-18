@@ -19,6 +19,7 @@ local M = {}
 ---@field conversation_id string|nil
 ---@field subscription_id string|nil
 ---@field shutting_down boolean
+---@field session_info table|nil
 M.state = {
   job_id = nil,
   stdout_buffer = "",
@@ -29,7 +30,17 @@ M.state = {
   conversation_id = nil,
   subscription_id = nil,
   shutting_down = false,
+  session_info = nil,
 }
+
+---@type table<string, fun(params: table, ctx: table)>
+M._request_handlers = {}
+---@type fun(event_type: string, params: table)|nil
+M._event_callback = nil
+---@type fun(info: table)|nil
+M._session_configured_callback = nil
+
+local send_payload
 
 local function reset_state()
   M.state.stdout_buffer = ""
@@ -40,6 +51,7 @@ local function reset_state()
   M.state.conversation_id = nil
   M.state.subscription_id = nil
   M.state.shutting_down = false
+  M.state.session_info = nil
 end
 
 local function emit_notification(level, ...)
@@ -50,33 +62,45 @@ local function emit_notification(level, ...)
 end
 
 local function handle_event(event_type, params)
+  local handled = false
+
   if event_type == "agent_message" and params.msg and params.msg.message then
     emit_notification(vim.log.levels.INFO, params.msg.message)
-    return
-  end
-
-  if event_type == "agent_message_delta" and params.msg and params.msg.delta then
+    handled = true
+  elseif event_type == "agent_message_delta" and params.msg and params.msg.delta then
     emit_notification(vim.log.levels.INFO, params.msg.delta)
-    return
-  end
-
-  if event_type == "error" and params.msg and params.msg.message then
+    handled = true
+  elseif event_type == "error" and params.msg and params.msg.message then
     emit_notification(vim.log.levels.ERROR, params.msg.message)
-    return
-  end
-
-  if event_type == "task_complete" then
+    handled = true
+  elseif event_type == "task_complete" then
     emit_notification(vim.log.levels.INFO, "Codex task complete")
-    return
+    handled = true
   end
 
-  logger.debug("codex", "Unhandled Codex event", event_type, vim.inspect(params))
+  if not handled then
+    logger.debug("codex", "Unhandled Codex event", event_type, vim.inspect(params))
+  end
+
+  if M._event_callback then
+    local ok, err = pcall(M._event_callback, event_type, params or {})
+    if not ok then
+      logger.warn("codex", "Event callback error", err)
+    end
+  end
 end
 
 local function handle_notification(method, params)
   if method == "sessionConfigured" then
     M.state.ready = true
+    M.state.session_info = params or {}
     logger.info("codex", "Session configured")
+    if M._session_configured_callback then
+      local ok, err = pcall(M._session_configured_callback, params or {})
+      if not ok then
+        logger.warn("codex", "Session callback error", err)
+      end
+    end
     return
   end
 
@@ -122,6 +146,11 @@ local function process_message(json_str)
     return
   end
 
+  if message.id ~= nil and message.method ~= nil then
+    handle_request(message)
+    return
+  end
+
   if message.id ~= nil then
     if message.error then
       resolve_pending(message.id, nil, message.error)
@@ -132,9 +161,7 @@ local function process_message(json_str)
   end
 
   if message.method then
-    local params = message.params
-    local method = message.method
-    handle_notification(method, params)
+    handle_notification(message.method, message.params)
   end
 end
 
@@ -229,7 +256,7 @@ local function handle_exit(_, code)
   reset_state()
 end
 
-local function send_payload(payload)
+send_payload = function(payload)
   if not M.state.job_id then
     return false, "Codex app-server not running"
   end
@@ -247,6 +274,98 @@ local function send_payload(payload)
   end
 
   return true, nil
+end
+
+local function send_json_response(id, result)
+  local payload = {
+    jsonrpc = "2.0",
+    id = id,
+    result = result or vim.empty_dict(),
+  }
+  local ok, err = send_payload(payload)
+  if not ok then
+    logger.error("codex", "Failed to send response", err or "unknown error")
+  end
+end
+
+local function send_json_error(id, error_tbl)
+  local payload = {
+    jsonrpc = "2.0",
+    id = id,
+    error = error_tbl,
+  }
+  local ok, err = send_payload(payload)
+  if not ok then
+    logger.error("codex", "Failed to send error response", err or "unknown error")
+  end
+end
+
+local function handle_request(message)
+  local method = message.method
+  local params = message.params or {}
+  local id = message.id
+
+  local handler = M._request_handlers[method]
+  if not handler then
+    send_json_error(id, {
+      code = -32601,
+      message = "Unsupported Codex request: " .. tostring(method),
+    })
+    return
+  end
+
+  local responded = false
+  local deferred = false
+
+  local function respond(result)
+    if responded then
+      logger.debug("codex", "Duplicate response suppressed for request", method)
+      return
+    end
+    responded = true
+    send_json_response(id, result)
+  end
+
+  local function respond_error(err)
+    if responded then
+      logger.debug("codex", "Duplicate error suppressed for request", method)
+      return
+    end
+    responded = true
+    if type(err) ~= "table" then
+      err = { code = -32603, message = "Internal error", data = tostring(err) }
+    else
+      err.code = err.code or -32603
+      err.message = err.message or "Internal error"
+    end
+    send_json_error(id, err)
+  end
+
+  local ctx = {
+    respond = respond,
+    respond_error = respond_error,
+    defer = function()
+      deferred = true
+    end,
+    method = method,
+    id = id,
+  }
+
+  local ok, ret1, ret2 = pcall(handler, params, ctx)
+  if not ok then
+    respond_error({ code = -32603, message = "Internal error", data = tostring(ret1) })
+    return
+  end
+
+  if responded or deferred then
+    return
+  end
+
+  if ret1 == false then
+    respond_error(ret2)
+  else
+    respond(ret1 or vim.empty_dict())
+  end
 end
 
 local function send_request(method, params, callback)
@@ -385,14 +504,10 @@ local function make_text_item(text)
   }
 end
 
-local function send_user_message(text)
+local function send_user_message_items(items)
   if not M.is_ready() then
     return false, "Codex session not ready"
   end
-
-  local items = {
-    make_text_item(text),
-  }
 
   local params = {
     conversationId = M.state.conversation_id,
@@ -404,6 +519,12 @@ local function send_user_message(text)
       logger.error("codex", "sendUserMessage failed", vim.inspect(err))
     end
   end)
+end
+
+local function send_user_message(text)
+  return send_user_message_items({
+    make_text_item(text),
+  })
 end
 
 local function read_file_segment(path, start_line, end_line)
@@ -440,8 +561,12 @@ function M.send_at_mention(path, start_line, end_line)
     header = string.format("@%s", path)
   end
 
-  local message = string.format("%s\n\n%s", header, content)
-  local ok, err = send_user_message(message)
+  local items = {
+    make_text_item(header),
+    make_text_item(""),
+    make_text_item(content),
+  }
+  local ok, err = send_user_message_items(items)
   if ok then
     logger.info("codex", string.format("Sent @ mention: %s", header))
   end
@@ -460,9 +585,42 @@ function M.send_selection(text, metadata)
     header = "Selection"
   end
 
-  local message = string.format("%s:\n\n%s", header, text)
-  local ok, err = send_user_message(message)
+  local items = {
+    make_text_item(header .. ":"),
+    make_text_item(""),
+    make_text_item(text),
+  }
+  local ok, err = send_user_message_items(items)
   return ok, err
+end
+
+function M.register_request_handlers(handlers)
+  if type(handlers) ~= "table" then
+    M._request_handlers = {}
+    return
+  end
+
+  local filtered = {}
+  for method, fn in pairs(handlers) do
+    if type(method) == "string" and type(fn) == "function" then
+      filtered[method] = fn
+    end
+  end
+  M._request_handlers = filtered
+end
+
+function M.on_event(callback)
+  if callback ~= nil and type(callback) ~= "function" then
+    error("codex_client.on_event expects a function or nil")
+  end
+  M._event_callback = callback
+end
+
+function M.on_session_configured(callback)
+  if callback ~= nil and type(callback) ~= "function" then
+    error("codex_client.on_session_configured expects a function or nil")
+  end
+  M._session_configured_callback = callback
 end
 
 return M

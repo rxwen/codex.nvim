@@ -1,27 +1,23 @@
 # codex.nvim
 
-> **Project intention:** This fork preserves the polished Neovim experience delivered by the original `[codex.nvim](https://github.com/coder/codex.nvim)` while substituting OpenAI Codex as the underlying assistant. The goal is to maintain the mature workflow (commands, keymaps, diff tooling) users rely on, merely rerouting the backend from Anthropic's Claude Code to Codex.
+> **Project intention:** This fork keeps the polished Neovim UX delivered by the original [`codex.nvim`](https://github.com/coder/codex.nvim) while routing the integration to OpenAI Codex. You still get the mature workflow (commands, keymaps, diff tooling); the backend now speaks to the Codex CLI and its JSON-RPC surface.
 
 [![Tests](https://github.com/coder/codex.nvim/actions/workflows/test.yml/badge.svg)](https://github.com/coder/codex.nvim/actions/workflows/test.yml)
 ![Neovim version](https://img.shields.io/badge/Neovim-0.8%2B-green)
 ![Status](https://img.shields.io/badge/Status-beta-blue)
 
-**Bring OpenAI Codex to Neovim** — launch the Codex CLI from inside your editor with a pure Lua implementation.
+**Bring OpenAI Codex to Neovim** — launch the Codex CLI from inside your editor with a pure Lua implementation that now understands Codex’s approvals, streaming events, and context protocol.
 
-> 🎯 **TL;DR:** Codex ships with an `app-server` JSON-RPC interface. This plugin now boots that process for you, keeps the existing `Codex*` commands/keymaps, and streams your selections/files straight to Codex.
-
-> **Heads-up:** The legacy command names remain (`Codex*`). Runtime behaviour now targets Codex, and some documentation below still references Claude until it is fully rewritten.
+> 🎯 **TL;DR:** The plugin boots `codex app-server`, keeps the familiar `Codex*` commands/keymaps, and streams your selections/files straight to Codex. Recent updates add interactive approvals, a live transcript buffer, and smarter connection handling.
 
 <https://github.com/user-attachments/assets/9c310fb5-5a23-482b-bedc-e21ae457a82d>
 
-## What Makes This Special
+## Highlights
 
-OpenAI's Codex CLI focuses on VS Code-style integrations. As a Neovim user, I wanted the same experience — so this plugin spins up the Codex app-server, translates your selections/mentions, and routes the responses back into Neovim.
-
-- 🚀 **Pure Lua, Zero Dependencies** — Built entirely with `vim.loop` and Neovim built-ins
-- 🔌 **Calls Codex Directly** — Launches `codex app-server` and speaks its JSON-RPC protocol
-- 🎓 **Fully Documented Protocol** — Learn how to build your own integrations ([see PROTOCOL.md](./PROTOCOL.md))
-- 🛠️ **Built with AI** — The original reverse-engineering work came from the Claude Code project; the bridge now points at Codex
+- ✅ **Interactive approvals inside Neovim** – `applyPatchApproval` requests open native diff tabs, while `execCommandApproval` prompts through `vim.ui.select`; approve or deny without leaving the editor.
+- 📝 **Streaming transcript buffer** – Codex agent/user/system messages stream into a Markdown buffer. Open it any time with `:lua require("codex.chat").open()`.
+- 🔄 **Connection-aware context queue** – `@file` mentions and visual selections queue safely until the Codex session is ready, then flush in order with debounce and timeout guards.
+- 🧭 **Configurable diff ergonomics** – Horizontal/vertical layouts, new-tab flow, and better focus handling let you fit Codex edits into your window workflow.
 
 ## Installation
 
@@ -31,38 +27,38 @@ OpenAI's Codex CLI focuses on VS Code-style integrations. As a Neovim user, I wa
   dependencies = { "folke/snacks.nvim" },
   config = true,
   keys = {
-    { "<leader>a", nil, desc = "AI/Codex" },
-    { "<leader>ac", "<cmd>Codex<cr>", desc = "Toggle Codex" },
-    { "<leader>af", "<cmd>CodexFocus<cr>", desc = "Focus Codex" },
-    { "<leader>ar", "<cmd>Codex --resume<cr>", desc = "Resume Codex" },
-    { "<leader>aC", "<cmd>Codex --continue<cr>", desc = "Continue Codex" },
+    { "<leader>a", nil, desc = "AI / Codex" },
+    { "<leader>ac", "<cmd>Codex<cr>", desc = "Toggle Codex terminal" },
+    { "<leader>af", "<cmd>CodexFocus<cr>", desc = "Focus Codex terminal" },
+    { "<leader>ar", "<cmd>Codex --resume<cr>", desc = "Resume Codex CLI" },
+    { "<leader>aC", "<cmd>Codex --continue<cr>", desc = "Continue Codex CLI" },
     { "<leader>am", "<cmd>CodexSelectModel<cr>", desc = "Select Codex model" },
     { "<leader>ab", "<cmd>CodexAdd %<cr>", desc = "Add current buffer" },
-    { "<leader>as", "<cmd>CodexSend<cr>", mode = "v", desc = "Send to Codex" },
+    { "<leader>as", "<cmd>CodexSend<cr>", mode = "v", desc = "Send selection to Codex" },
     {
       "<leader>as",
       "<cmd>CodexTreeAdd<cr>",
-      desc = "Add file",
+      desc = "Add tree selection to Codex",
       ft = { "NvimTree", "neo-tree", "oil", "minifiles", "netrw" },
     },
     -- Diff management
-    { "<leader>aa", "<cmd>CodexDiffAccept<cr>", desc = "Accept diff" },
-    { "<leader>ad", "<cmd>CodexDiffDeny<cr>", desc = "Deny diff" },
+    { "<leader>aa", "<cmd>CodexDiffAccept<cr>", desc = "Accept Codex diff" },
+    { "<leader>ad", "<cmd>CodexDiffDeny<cr>", desc = "Reject Codex diff" },
   },
 }
 ```
 
-That's it! The plugin will auto-configure everything else.
+That’s it! `require("codex").setup()` wires the server, terminal, and defaults for you.
 
 ## Requirements
 
-- Neovim >= 0.8.0
-- [Codex CLI](https://github.com/openai/codex) (`npm install -g @openai/codex` or build from source)
-- [folke/snacks.nvim](https://github.com/folke/snacks.nvim) for enhanced terminal support (optional)
+- Neovim ≥ 0.8.0
+- [Codex CLI](https://github.com/openai/codex) (`npm install -g @openai/codex`, or build from source)
+- [folke/snacks.nvim](https://github.com/folke/snacks.nvim) for the enhanced terminal provider (optional; native terminal fallback included)
 
 ### Customising the Codex binary
 
-By default the plugin executes `codex app-server`. If you installed the CLI somewhere else, set `opts.codex_cmd = "/path/to/codex"` (or pass the argument directly to `require("codex").setup`).
+By default the plugin executes `codex app-server`. If you installed the CLI elsewhere, set `opts.codex_cmd = "/path/to/codex"` (or pass arguments directly to `require("codex").setup`). You can also override `terminal_cmd` to point at an alternate wrapper script, and populate `opts.env` to inject environment variables into the Codex terminal.
 
 ## Quick Demo
 
@@ -70,56 +66,59 @@ By default the plugin executes `codex app-server`. If you installed the CLI some
 " Launch Codex in a split
 :Codex
 
-" Codex now sees your current file and selections in real-time!
-
-" Send visual selection as context
+" Stream a visual selection as context
 :'<,'>CodexSend
 
-" Codex can open files, show diffs, and more
+" Approve or reject proposed edits in-place
+:CodexDiffAccept
 ```
 
 ## Usage
 
-1. **Launch Codex**: Run `:Codex` to open Codex in a split terminal
-2. **Send context**:
-   - Select text in visual mode and use `<leader>as` to send it to Codex
-   - In `nvim-tree`/`neo-tree`/`oil.nvim`/`mini.nvim`, press `<leader>as` on a file to add it to Codex's context
-3. **Let Codex work**: Codex can now:
-   - See your current file and selections in real-time
-   - Open files in your editor
-   - Show diffs with proposed changes
-   - Access diagnostics and workspace info
+1. **Start the integration** – `setup()` auto-starts Codex unless you set `auto_start = false`. You can control lifecycle explicitly with `:CodexStart`, `:CodexStop`, and `:CodexStatus`.
+2. **Open the terminal** – `:Codex`, `:CodexFocus`, `:CodexOpen`, and `:CodexClose` manage the Codex CLI window via your chosen terminal provider.
+3. **Send context** – Use `<leader>as` in visual mode, `:CodexAdd <path> [start] [end]`, or `:CodexTreeAdd` inside supported file explorers. Selections queue until the Codex session is ready.
+4. **Review output** – Watch the CLI, open the transcript buffer, or inspect diff tabs when Codex proposes edits. Approvals flow through Neovim prompts.
 
 ## Key Commands
 
-- `:Codex` - Toggle the Codex terminal window
-- `:CodexFocus` - Smart focus/toggle Codex terminal
-- `:CodexSelectModel` - Select Codex model and open terminal with optional arguments
-- `:CodexSend` - Send current visual selection to Codex
-- `:CodexAdd <file-path> [start-line] [end-line]` - Add specific file to Codex context with optional line range
-- `:CodexDiffAccept` - Accept diff changes
-- `:CodexDiffDeny` - Reject diff changes
+- `:CodexStart` / `:CodexStop` / `:CodexStatus` – Control the WebSocket bridge and check connectivity.
+- `:Codex`, `:CodexFocus`, `:CodexOpen`, `:CodexClose` – Manage the Codex terminal window.
+- `:CodexSend` – Send the current visual selection (tree-aware).
+- `:CodexAdd <file> [start] [end]` – Manually add a file or range.
+- `:CodexTreeAdd` – Add selected files from NvimTree/neo-tree/oil/mini.files/netrw.
+- `:CodexSelectModel` – Pick a configured model before launching Codex CLI.
+- `:CodexDiffAccept` / `:CodexDiffDeny` – Accept or reject the active diff proposal.
 
 ## Working with Diffs
 
-When Codex proposes changes, the plugin opens a native Neovim diff view:
+Codex proposals open in a dedicated diff tab with your configured layout:
 
-- **Accept**: `:w` (save) or `<leader>aa`
-- **Reject**: `:q` or `<leader>ad`
+- **Accept** – Write the proposed buffer (`:w`) or trigger `:CodexDiffAccept`.
+- **Reject** – Close the diff window (`:q`) or call `:CodexDiffDeny`.
+- **New-file behaviour** – Control whether a rejected new-file buffer stays open via `diff_opts.on_new_file_reject`.
 
-You can edit Codex's suggestions before accepting them.
+Diff windows respect `diff_opts.layout`, `diff_opts.open_in_new_tab`, and focus-handling options so you can fit Codex edits into your existing window workflow.
 
-## Architecture
+## Approvals & Safety
 
-Built with pure Lua and zero external dependencies:
+Codex CLI now requests approval before mutating your workspace:
 
-- **WebSocket Server** - RFC 6455 compliant implementation using `vim.loop`
-- **MCP Protocol** - Full JSON-RPC 2.0 message handling
-- **Lock File System** - Enables Claude CLI discovery
-- **Selection Tracking** - Real-time context updates
-- **Native Diff Support** - Seamless file comparison
+- **Apply patch** – `applyPatchApproval` opens each file in a blocking diff flow. Saving approves, closing rejects. Multiple files are processed sequentially with helpful log summaries.
+- **Run command** – `execCommandApproval` surfaces the requested command, cwd, and reason via `vim.ui.select`. Choose “Approve” or “Deny” to respond.
+- **Policy/sandbox hints** – Surface Codex defaults in the transcript and configure them with `codex_approval_policy` and `codex_sandbox_mode`.
 
-For deep technical details, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+Every approval path is asynchronous: the CLI waits for your response while Neovim remains responsive.
+
+## Live Transcript
+
+All Codex events are mirrored into a Markdown transcript buffer:
+
+```vim
+:lua require("codex.chat").open()
+```
+
+Use it to review agent reasoning, system notices, and your own prompts without leaving Neovim. The buffer stays hidden until you open it and survives across sessions until wiped.
 
 ## Advanced Configuration
 
@@ -128,92 +127,86 @@ For deep technical details, see [ARCHITECTURE.md](./ARCHITECTURE.md).
   "rxwen/codex.nvim",
   dependencies = { "folke/snacks.nvim" },
   opts = {
-    -- Server Configuration
-    port_range = { min = 10000, max = 65535 },
+    -- Core behaviour
     auto_start = true,
-    log_level = "info", -- "trace", "debug", "info", "warn", "error"
-    terminal_cmd = nil, -- Custom terminal command (default: "claude")
-                        -- For local installations: "~/.claude/local/claude"
-                        -- For native binary: use output from 'which claude'
-
-    -- Send/Focus Behavior
-    -- When true, successful sends will focus the Claude terminal if already connected
+    log_level = "info", -- "trace" | "debug" | "info" | "warn" | "error"
+    track_selection = false, -- set true to stream cursor context automatically
     focus_after_send = false,
+    connection_wait_delay = 600,
+    connection_timeout = 10000,
+    queue_timeout = 5000,
+    port_range = { min = 10000, max = 65535 },
 
-    -- Selection Tracking
-    track_selection = true,
-    visual_demotion_delay_ms = 50,
-
-    -- Terminal Configuration
-    terminal = {
-      split_side = "right", -- "left" or "right"
-      split_width_percentage = 0.30,
-      provider = "auto", -- "auto", "snacks", "native", "external", "none", or custom provider table
-      auto_close = true,
-      snacks_win_opts = {}, -- Opts to pass to `Snacks.terminal.open()` - see Floating Window section below
-
-      -- Provider-specific options
-      provider_opts = {
-        -- Command for external terminal provider. Can be:
-        -- 1. String with %s placeholder: "alacritty -e %s" (backward compatible)
-        -- 2. String with two %s placeholders: "alacritty --working-directory %s -e %s" (cwd, command)
-        -- 3. Function returning command: function(cmd, env) return "alacritty -e " .. cmd end
-        external_terminal_cmd = nil,
-      },
+    -- Codex CLI orchestration
+    codex_cmd = "codex",
+    terminal_cmd = nil, -- override command executed inside terminal if needed
+    env = {}, -- extra env vars for Codex CLI
+    codex_approval_policy = nil, -- e.g. "untrusted", forwarded to Codex CLI
+    codex_sandbox_mode = nil, -- e.g. "workspace-write"
+    models = {
+      { name = "GPT-5 Codex", value = "gpt-5-codex" },
+      { name = "GPT-5", value = "gpt-5" },
     },
+    default_model = "gpt-5-codex",
 
-    -- Diff Integration
+    -- Diff ergonomics
     diff_opts = {
-      auto_close_on_accept = true,
-      vertical_split = true,
-      open_in_current_tab = true,
-      keep_terminal_focus = false, -- If true, moves focus back to terminal after diff opens
+      layout = "vertical", -- or "horizontal"
+      open_in_new_tab = false,
+      keep_terminal_focus = false,
+      hide_terminal_in_new_tab = false,
+      on_new_file_reject = "keep_empty", -- or "close_window"
     },
-  },
-  keys = {
-    -- Your keymaps here
+
+    -- Terminal provider configuration
+    terminal = {
+      split_side = "right",
+      split_width_percentage = 0.30,
+      provider = "auto", -- "auto" | "snacks" | "native" | "external" | "none" | custom table
+      provider_opts = {
+        external_terminal_cmd = nil, -- string template or function(cmd, env)
+      },
+      auto_close = true,
+      show_native_term_exit_tip = true,
+      env = {}, -- env overrides applied when spawning the terminal job
+      snacks_win_opts = {}, -- forwarded to Snacks.terminal.open()
+      cwd = nil,
+      git_repo_cwd = false,
+      cwd_provider = nil, -- function(ctx) -> cwd
+    },
   },
 }
 ```
 
-### Working Directory Control
+Notable tips:
 
-You can fix the Claude terminal's working directory regardless of `autochdir` and buffer-local cwd changes. Options (precedence order):
+- **Selection tracking** – Enable `track_selection = true` if you want cursor movements to stream automatically; leave it off to manage context manually.
+- **Environment control** – Populate `env` (top-level or terminal-specific) to forward tokens, proxies, or feature flags to the Codex CLI.
+- **Model presets** – Extend `models` with additional `{ name, value }` entries to power `:CodexSelectModel`.
 
-- `cwd_provider(ctx)`: function that returns a directory string. Receives `{ file, file_dir, cwd }`.
-- `cwd`: static path to use as working directory.
-- `git_repo_cwd = true`: resolves git root from the current file directory (or cwd if no file).
+## Working Directory Control
 
-Examples:
+Pin the Codex terminal’s working directory regardless of `autochdir` or buffer-local cwd changes. Options (highest precedence first):
+
+- `cwd_provider(ctx)` – function receiving `{ file, file_dir, cwd }` and returning a directory string.
+- `cwd` – static path.
+- `git_repo_cwd = true` – use the git root derived from the active buffer (or current cwd).
+
+Example:
 
 ```lua
 require("codex").setup({
-  -- Top-level aliases are supported and forwarded to terminal config
-  git_repo_cwd = true,
-})
-
-require("codex").setup({
-  terminal = {
-    cwd = vim.fn.expand("~/projects/my-app"),
-  },
-})
-
-require("codex").setup({
   terminal = {
     cwd_provider = function(ctx)
-      -- Prefer repo root; fallback to file's directory
-      local cwd = require("codex.cwd").git_root(ctx.file_dir or ctx.cwd) or ctx.file_dir or ctx.cwd
-      return cwd
+      return require("codex.cwd").git_root(ctx.file_dir or ctx.cwd) or ctx.file_dir or ctx.cwd
     end,
   },
 })
 ```
 
-## Floating Window Configuration
+## Floating Window Configuration (Snacks)
 
-The `snacks_win_opts` configuration allows you to create floating Claude Code terminals with custom positioning, sizing, and key bindings. Here are several practical examples:
-
-### Basic Floating Window with Ctrl+, Toggle
+`snacks_win_opts` lets you create floating Codex terminals with custom positioning and behaviour:
 
 ```lua
 local toggle_key = "<C-,>"
@@ -222,54 +215,17 @@ return {
     "rxwen/codex.nvim",
     dependencies = { "folke/snacks.nvim" },
     keys = {
-      { toggle_key, "<cmd>CodexFocus<cr>", desc = "Claude Code", mode = { "n", "x" } },
-    },
-    opts = {
-      terminal = {
-        ---@module "snacks"
-        ---@type snacks.win.Config|{}
-        snacks_win_opts = {
-          position = "float",
-          width = 0.9,
-          height = 0.9,
-          keys = {
-            claude_hide = {
-              toggle_key,
-              function(self)
-                self:hide()
-              end,
-              mode = "t",
-              desc = "Hide",
-            },
-          },
-        },
-      },
-    },
-  },
-}
-```
-
-<details>
-<summary>Alternative with Meta+, (Alt+,) Toggle</summary>
-
-```lua
-local toggle_key = "<M-,>"  -- Alt/Meta + comma
-return {
-  {
-    "rxwen/codex.nvim",
-    dependencies = { "folke/snacks.nvim" },
-    keys = {
-      { toggle_key, "<cmd>CodexFocus<cr>", desc = "Claude Code", mode = { "n", "x" } },
+      { toggle_key, "<cmd>CodexFocus<cr>", desc = "Codex (Ctrl+,)", mode = { "n", "x" } },
     },
     opts = {
       terminal = {
         snacks_win_opts = {
           position = "float",
-          width = 0.8,
-          height = 0.8,
+          width = 0.85,
+          height = 0.85,
           border = "rounded",
           keys = {
-            claude_hide = { toggle_key, function(self) self:hide() end, mode = "t", desc = "Hide" },
+            codex_hide = { toggle_key, function(self) self:hide() end, mode = "t", desc = "Hide" },
           },
         },
       },
@@ -278,390 +234,61 @@ return {
 }
 ```
 
-</details>
-
-<details>
-<summary>Centered Floating Window with Custom Styling</summary>
-
-```lua
-require("codex").setup({
-  terminal = {
-    snacks_win_opts = {
-      position = "float",
-      width = 0.6,
-      height = 0.6,
-      border = "double",
-      backdrop = 80,
-      keys = {
-        claude_hide = { "<Esc>", function(self) self:hide() end, mode = "t", desc = "Hide" },
-        claude_close = { "q", "close", mode = "n", desc = "Close" },
-      },
-    },
-  },
-})
-```
-
-</details>
-
-<details>
-<summary>Multiple Key Binding Options</summary>
-
-```lua
-{
-  "rxwen/codex.nvim",
-  dependencies = { "folke/snacks.nvim" },
-  keys = {
-    { "<C-,>", "<cmd>CodexFocus<cr>", desc = "Claude Code (Ctrl+,)", mode = { "n", "x" } },
-    { "<M-,>", "<cmd>CodexFocus<cr>", desc = "Claude Code (Alt+,)", mode = { "n", "x" } },
-    { "<leader>tc", "<cmd>CodexFocus<cr>", desc = "Toggle Claude", mode = { "n", "x" } },
-  },
-  opts = {
-    terminal = {
-      snacks_win_opts = {
-        position = "float",
-        width = 0.85,
-        height = 0.85,
-        border = "rounded",
-        keys = {
-          -- Multiple ways to hide from terminal mode
-          claude_hide_ctrl = { "<C-,>", function(self) self:hide() end, mode = "t", desc = "Hide (Ctrl+,)" },
-          claude_hide_alt = { "<M-,>", function(self) self:hide() end, mode = "t", desc = "Hide (Alt+,)" },
-          claude_hide_esc = { "<C-\\><C-n>", function(self) self:hide() end, mode = "t", desc = "Hide (Ctrl+\\)" },
-        },
-      },
-    },
-  },
-}
-```
-
-</details>
-
-<details>
-<summary>Window Position Variations</summary>
-
-```lua
--- Bottom floating (like a drawer)
-snacks_win_opts = {
-  position = "bottom",
-  height = 0.4,
-  width = 1.0,
-  border = "single",
-}
-
--- Side floating panel
-snacks_win_opts = {
-  position = "right",
-  width = 0.4,
-  height = 1.0,
-  border = "rounded",
-}
-
--- Small centered popup
-snacks_win_opts = {
-  position = "float",
-  width = 120,  -- Fixed width in columns
-  height = 30,  -- Fixed height in rows
-  border = "double",
-  backdrop = 90,
-}
-```
-
-</details>
-
-For complete configuration options, see:
-
-- [Snacks.nvim Terminal Documentation](https://github.com/folke/snacks.nvim/blob/main/docs/terminal.md)
-- [Snacks.nvim Window Documentation](https://github.com/folke/snacks.nvim/blob/main/docs/win.md)
+See the [Snacks terminal docs](https://github.com/folke/snacks.nvim/blob/main/docs/terminal.md) for all available window options.
 
 ## Terminal Providers
 
-### None (No-Op) Provider
+- **`native`** – Always available fallback using Neovim’s built-in terminal.
+- **`snacks`** – Integrates with Snacks.nvim if installed (auto-detected when `provider = "auto"`).
+- **`external`** – Spawn Codex in another terminal application. Provide a template or function via `provider_opts.external_terminal_cmd` (remember to include `%s` placeholders for the command and optionally cwd).
+- **`none`** – Skip terminal management entirely; useful when you prefer tmux/kitty but still want the server and tools.
+- **Custom table** – Supply your own provider implementing `setup`, `open`, `close`, `simple_toggle`, `focus_toggle`, `get_active_bufnr`, and `is_available`.
 
-Run Claude Code without any terminal management inside Neovim. This is useful for advanced setups where you manage the CLI externally (tmux, kitty, separate terminal windows) while still using the WebSocket server and tools.
-
-```lua
-{
-  "rxwen/codex.nvim",
-  opts = {
-    terminal = {
-      provider = "none", -- no UI actions; server + tools remain available
-    },
-  },
-}
-```
-
-Notes:
-
-- No windows/buffers are created. `:Codex` and related commands will not open anything.
-- The WebSocket server still starts and broadcasts work as usual. Launch the Claude CLI externally when desired.
-
-### External Terminal Provider
-
-Run Claude Code in a separate terminal application outside of Neovim:
+Example external provider:
 
 ```lua
--- Using a string template (simple)
 {
   "rxwen/codex.nvim",
   opts = {
     terminal = {
       provider = "external",
       provider_opts = {
-        external_terminal_cmd = "alacritty -e %s", -- %s is replaced with claude command
-        -- Or with working directory: "alacritty --working-directory %s -e %s" (first %s = cwd, second %s = command)
-      },
-    },
-  },
-}
-
--- Using a function for dynamic command generation (advanced)
-{
-  "rxwen/codex.nvim",
-  opts = {
-    terminal = {
-      provider = "external",
-      provider_opts = {
-        external_terminal_cmd = function(cmd, env)
-          -- You can build complex commands based on environment or conditions
-          if vim.fn.has("mac") == 1 then
-            return { "osascript", "-e", string.format('tell app "Terminal" to do script "%s"', cmd) }
-          else
-            return "alacritty -e " .. cmd
-          end
-        end,
+        external_terminal_cmd = "alacritty --working-directory %s -e %s",
       },
     },
   },
 }
 ```
 
-### Custom Terminal Providers
+## Auto-Save Plugins
 
-You can create custom terminal providers by passing a table with the required functions instead of a string provider name:
-
-```lua
-require("codex").setup({
-  terminal = {
-    provider = {
-      -- Required functions
-      setup = function(config)
-        -- Initialize your terminal provider
-      end,
-
-      open = function(cmd_string, env_table, effective_config, focus)
-        -- Open terminal with command and environment
-        -- focus parameter controls whether to focus terminal (defaults to true)
-      end,
-
-      close = function()
-        -- Close the terminal
-      end,
-
-      simple_toggle = function(cmd_string, env_table, effective_config)
-        -- Simple show/hide toggle
-      end,
-
-      focus_toggle = function(cmd_string, env_table, effective_config)
-        -- Smart toggle: focus terminal if not focused, hide if focused
-      end,
-
-      get_active_bufnr = function()
-        -- Return terminal buffer number or nil
-        return 123 -- example
-      end,
-
-      is_available = function()
-        -- Return true if provider can be used
-        return true
-      end,
-
-      -- Optional functions (auto-generated if not provided)
-      toggle = function(cmd_string, env_table, effective_config)
-        -- Defaults to calling simple_toggle for backward compatibility
-      end,
-
-      _get_terminal_for_test = function()
-        -- For testing only, defaults to return nil
-        return nil
-      end,
-    },
-  },
-})
-```
-
-### Custom Provider Example
-
-Here's a complete example using a hypothetical `my_terminal` plugin:
+Auto-save plugins may accept Codex diff buffers immediately. Guard against that by excluding Codex diff buffers using their buffer variables or naming convention. Example for `pocco81/auto-save.nvim`:
 
 ```lua
-local my_terminal_provider = {
-  setup = function(config)
-    -- Store config for later use
-    self.config = config
-  end,
+condition = function(buf)
+  local bufname = vim.api.nvim_buf_get_name(buf)
+  if bufname:match("%(proposed%)") or bufname:match("%(NEW FILE %- proposed%)") then
+    return false
+  end
 
-  open = function(cmd_string, env_table, effective_config, focus)
-    if focus == nil then focus = true end
+  if vim.b[buf].codex_diff_tab_name then
+    return false
+  end
 
-    local my_terminal = require("my_terminal")
-    my_terminal.open({
-      cmd = cmd_string,
-      env = env_table,
-      width = effective_config.split_width_percentage,
-      side = effective_config.split_side,
-      focus = focus,
-    })
-  end,
-
-  close = function()
-    require("my_terminal").close()
-  end,
-
-  simple_toggle = function(cmd_string, env_table, effective_config)
-    require("my_terminal").toggle()
-  end,
-
-  focus_toggle = function(cmd_string, env_table, effective_config)
-    local my_terminal = require("my_terminal")
-    if my_terminal.is_focused() then
-      my_terminal.hide()
-    else
-      my_terminal.focus()
-    end
-  end,
-
-  get_active_bufnr = function()
-    return require("my_terminal").get_bufnr()
-  end,
-
-  is_available = function()
-    local ok, _ = pcall(require, "my_terminal")
-    return ok
-  end,
-}
-
-require("codex").setup({
-  terminal = {
-    provider = my_terminal_provider,
-  },
-})
+  return true
+end,
 ```
-
-The custom provider will automatically fall back to the native provider if validation fails or `is_available()` returns false.
-
-Note: If your command or working directory may contain spaces or special characters, prefer returning a table of args from a function (e.g., `{ "alacritty", "--working-directory", cwd, "-e", "claude", "--help" }`) to avoid shell-quoting issues.
-
-## Community Extensions
-
-The following are third-party community extensions that complement codex.nvim. **These extensions are not affiliated with Coder and are maintained independently by community members.** We do not ensure that these extensions work correctly or provide support for them.
-
-### 🔍 [claude-fzf.nvim](https://github.com/pittcat/claude-fzf.nvim)
-
-Integrates fzf-lua's file selection with codex.nvim's context management:
-
-- Batch file selection with fzf-lua multi-select
-- Smart search integration with grep → Claude
-- Tree-sitter based context extraction
-- Support for files, buffers, git files
-
-### 📚 [claude-fzf-history.nvim](https://github.com/pittcat/claude-fzf-history.nvim)
-
-Provides convenient Claude interaction history management and access for enhanced workflow continuity.
-
-> **Disclaimer**: These community extensions are developed and maintained by independent contributors. The authors and their extensions are not affiliated with Coder. Use at your own discretion and refer to their respective repositories for installation instructions, documentation, and support.
-
-## Auto-Save Plugin Issues
-
-Using auto-save plugins can cause diff windows opened by Claude to immediately accept without waiting for input. You can avoid this using a custom condition:
-
-<details>
-<summary>Pocco81/auto-save.nvim</summary>
-
-```lua
-opts = {
-  -- ... other options
-  condition = function(buf)
-    local fn = vim.fn
-    local utils = require("auto-save.utils.data")
-
-    -- First check the default conditions
-    if not (fn.getbufvar(buf, "&modifiable") == 1 and utils.not_in(fn.getbufvar(buf, "&filetype"), {})) then
-      return false
-    end
-
-    -- Exclude codex diff buffers by buffer name patterns
-    local bufname = vim.api.nvim_buf_get_name(buf)
-    if bufname:match("%(proposed%)") or
-       bufname:match("%(NEW FILE %- proposed%)") or
-       bufname:match("%(New%)") then
-      return false
-    end
-
-    -- Exclude by buffer variables (codex sets these)
-    if vim.b[buf].codex_diff_tab_name or
-       vim.b[buf].codex_diff_new_win or
-       vim.b[buf].codex_diff_target_win then
-      return false
-    end
-
-    -- Exclude by buffer type (codex diff buffers use "acwrite")
-    local buftype = fn.getbufvar(buf, "&buftype")
-    if buftype == "acwrite" then
-      return false
-    end
-
-    return true -- Safe to auto-save
-  end,
-},
-```
-
-</details>
-<details>
-<summary>okuuva/auto-save.nvim</summary>
-
-```lua
-opts = {
-  -- ... other options
-  condition = function(buf)
-    -- Exclude codex diff buffers by buffer name patterns
-    local bufname = vim.api.nvim_buf_get_name(buf)
-    if bufname:match('%(proposed%)') or bufname:match('%(NEW FILE %- proposed%)') or bufname:match('%(New%)') then
-      return false
-    end
-
-    -- Exclude by buffer variables (codex sets these)
-    if
-      vim.b[buf].codex_diff_tab_name
-      or vim.b[buf].codex_diff_new_win
-      or vim.b[buf].codex_diff_target_win
-    then
-      return false
-    end
-
-    -- Exclude by buffer type (codex diff buffers use "acwrite")
-    local buftype = vim.fn.getbufvar(buf, '&buftype')
-    if buftype == 'acwrite' then
-      return false
-    end
-
-    return true -- Safe to auto-save
-  end,
-},
-```
-
-</details>
 
 ## Troubleshooting
 
-- **Claude not connecting?** Check `:CodexStatus` and verify lock file exists in `~/.claude/ide/` (or `$CLAUDE_CONFIG_DIR/ide/` if `CLAUDE_CONFIG_DIR` is set)
-- **Need debug logs?** Set `log_level = "debug"` in opts
-- **Terminal issues?** Try `provider = "native"` if using snacks.nvim
-- **Local installation not working?** If you used `claude migrate-installer`, set `terminal_cmd = "~/.claude/local/claude"` in your config. Check `which claude` vs `ls ~/.claude/local/claude` to verify your installation type.
-- **Native binary installation not working?** If you used the alpha native binary installer, run `claude doctor` to verify installation health and use `which claude` to find the binary path. Set `terminal_cmd = "/path/to/claude"` with the detected path in your config.
+- **Codex not connecting?** Run `:CodexStatus` and confirm a lock file exists in `~/.claude/ide/` (Codex CLI still reads Claude Code lock paths for compatibility, or `$CLAUDE_CONFIG_DIR/ide/` if set).
+- **Need debug logs?** Set `log_level = "debug"` (or `"trace"`) in your setup.
+- **Terminal glitches?** Temporarily force `terminal.provider = "native"` to rule out Snacks or custom providers.
+- **Custom Codex binary?** Ensure `codex_cmd` (and optionally `terminal_cmd`) point at the correct executable, and verify `which codex` returns the binary you expect.
 
 ## Contributing
 
-See [DEVELOPMENT.md](./DEVELOPMENT.md) for build instructions and development guidelines. Tests can be run with `make test`.
+See [DEVELOPMENT.md](./DEVELOPMENT.md) for build instructions and development guidelines. Run `make format`, `make check`, and `make test` before submitting changes.
 
 ## License
 
@@ -669,6 +296,6 @@ See [DEVELOPMENT.md](./DEVELOPMENT.md) for build instructions and development gu
 
 ## Acknowledgements
 
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) by Anthropic
-- Inspired by analyzing the official VS Code extension
-- Built with assistance from AI (how meta!)
+- Built on the research and reverse-engineering from the original Coder/Claude Code integration.
+- Thanks to the Codex CLI team for the JSON-RPC surface.
+- Crafted with a little help from AI (how meta!).

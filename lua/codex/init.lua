@@ -963,6 +963,12 @@ function M._create_commands()
     desc = "Add specified file or directory to Codex context with optional line range",
   })
 
+  vim.api.nvim_create_user_command("CodexChat", function()
+    chat.open()
+  end, {
+    desc = "Open the Codex transcript window",
+  })
+
   local terminal_ok, terminal = pcall(require, "codex.terminal")
   if terminal_ok then
     vim.api.nvim_create_user_command("Codex", function(opts)

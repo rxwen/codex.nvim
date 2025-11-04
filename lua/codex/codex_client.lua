@@ -407,7 +407,7 @@ local function ensure_conversation(params)
       return
     end
 
-    logger.info("codex", "Initialized Codex app-server", vim.inspect(result))
+    logger.debug("codex", "Initialized Codex app-server", vim.inspect(result))
 
     send_request("newConversation", params, function(conv_result, conv_err)
       if conv_err then
@@ -422,7 +422,7 @@ local function ensure_conversation(params)
         return
       end
 
-      logger.info("codex", "Started conversation", M.state.conversation_id)
+      logger.debug("codex", "Started conversation", M.state.conversation_id)
 
       send_request("addConversationListener", {
         conversationId = M.state.conversation_id,
@@ -433,7 +433,7 @@ local function ensure_conversation(params)
         end
         M.state.subscription_id = listener_result.subscriptionId or listener_result.subscription_id
         M.state.ready = true
-        logger.info("codex", "Codex listener subscription", M.state.subscription_id)
+        logger.debug("codex", "Codex listener subscription", M.state.subscription_id)
         vim.schedule(function()
           local ok, main_module = pcall(require, "codex")
           if ok and type(main_module.process_mention_queue) == "function" then

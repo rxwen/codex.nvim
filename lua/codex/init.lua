@@ -72,7 +72,7 @@ local function install_client_callbacks()
       or (M.state.config and M.state.config.default_model)
       or "unknown"
 
-    logger.info("init", string.format("Codex session configured (%s)", model_name))
+    logger.debug("init", string.format("Codex session configured (%s)", model_name))
     chat.append_system_message(string.format("Session ready (%s)", model_name))
   end)
 
@@ -493,7 +493,7 @@ function M.start(show_startup_notification)
   end
 
   if show_startup_notification then
-    logger.info("init", "Codex integration started")
+    logger.debug("init", "Codex integration started")
   end
 
   return true, start_result
@@ -525,7 +525,7 @@ function M.stop()
   -- Clear any queued @ mentions when server stops
   clear_mention_queue()
 
-  logger.info("init", "Codex integration stopped")
+  logger.debug("init", "Codex integration stopped")
 
   return true
 end

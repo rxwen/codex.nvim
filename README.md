@@ -1,6 +1,6 @@
 # codex.nvim
 
-> **Project intention:** This fork keeps the polished Neovim UX delivered by the original [`codex.nvim`](https://github.com/coder/codex.nvim) while routing the integration to OpenAI Codex. You still get the mature workflow (commands, keymaps, diff tooling); the backend now speaks to the Codex CLI and its JSON-RPC surface.
+> **Project intention:** This fork keeps the polished Neovim UX delivered by the original [`claudecode.nvim`](https://github.com/coder/claudecode.nvim) while routing the integration to OpenAI Codex. You still get the mature workflow (commands, keymaps, diff tooling); the backend now speaks to the Codex CLI and its JSON-RPC surface.
 
 [![Tests](https://github.com/coder/codex.nvim/actions/workflows/test.yml/badge.svg)](https://github.com/coder/codex.nvim/actions/workflows/test.yml)
 ![Neovim version](https://img.shields.io/badge/Neovim-0.8%2B-green)
